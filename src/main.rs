@@ -517,7 +517,7 @@ fn main() {
 // cargo run -- prompt Explain Rust ownership rules
 //
 // # CSV query (multi-word query)
-// cargo run -- csv ./data/sales.csv ./output.txt List all unique customers
+// cargo run  -- csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate the average sales for all customers."
 
 // main idea
 // fn main() {
@@ -542,13 +542,6 @@ fn main() {
 //         llama_free_model(model);
 //     }
 // }
-// Chat REPL: cargo run
-
-// From file: cargo run -- --file prompts.txt        — reads prompts.txt and generates output for the whole text.
-
-// From prompt: cargo run -- --prompt "Explain Rust ownership"        — generates output for that prompt once.
-
-// From csv file: cargo run  -- --csv ./data/sales.csv $'Given the following CSV data:\n{csv}\n\nQuestion: List all unique customers\n\nReturn ONLY the list of customer names, one per line, with no additional text or explanations.' ./output.txt
 
 // - Loading a local LLaMA model from models/llama-2-7b-chat.Q4_0.gguf using the C API (llama.cpp library) via Rust's extern "C" FFI.
 //
