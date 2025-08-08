@@ -29,8 +29,32 @@ You must download these separately, following official or community sources, and
 
 **How to use**
 
-The default model (if not models path provided in command line : `llama-2-7b-chat.Q4_0.gguf` )
+The default model `llama-2-7b-chat.Q4_0.gguf` (if not models path provided in command line via `-- --model models/name )
 Assuming you have the model in `models/...` required files in the same directory, you can run:
+
+
+# REPL chat mode
+```
+./llama_ffi_demo  chat
+
+or 
+
+cargo run chat
+```
+
+# Generate from file
+
+```
+./llama_ffi_demo file prompts.txt
+``` 
+
+# Generate from prompt (multi-word)
+
+```
+./llama_ffi_demo prompt "Explain Rust ownership rules"
+``` 
+
+# CSV query (multi-word query)
 
 ```
 ./llama_ffi_demo csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate the average sales for all customers.\nAnswer ONLY with the numeric average."

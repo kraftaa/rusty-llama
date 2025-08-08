@@ -279,9 +279,9 @@ unsafe fn generate_text(
     for _ in 0..max_tokens {
         let next_token = generated_tokens.last().unwrap_or(&tokens[n_past as usize - 1]);
         // implement breaking after 3 new lines
-        if stop_tokens.contains(&next_token) {
-            break;
-        }
+        // if stop_tokens.contains(&next_token) {
+        //     break;
+        // }
         if next_token == &13 {  // newline
             newline_count += 1;
             if newline_count >= 3 {
