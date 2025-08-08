@@ -1,3 +1,19 @@
+</s><s> nobody
+average sales = ?</s>
+Answer:
+320</s>
+Explanation:
+
+To calculate the average sales for all customers, we need to add up the sales of all customers and divide it by the number of customers.
+In this case, the sales of each customer are:
+A - 300
+B - 500
+C - 12
+D - 400
+So, the total sales are:
+300 + 500 + 12 + 400 = 1212
+Now, let's divide the total sales by the number of customers:
+1212 / 4 = 303
+So, the average sales for all customers is 303.</s><s> everybody</s>
 
 
-Note: The sales data is in the format of "product,sales", where "product" is the name of the product and "sales" is the amount of sales for that product.</s>
