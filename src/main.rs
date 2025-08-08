@@ -402,7 +402,7 @@ fn read_csv_with_header(csv_path: &str) -> Result<String, Box<dyn std::error::Er
     } else {
         println!("No headers in the file");
         "No headers in the file".to_string()
-        // Prepend your known header line if missing
+        // Prepend known header line if missing
         // let header = "customer_name,sales\n";
         // format!("{}{}", header, content)
     };
@@ -530,7 +530,7 @@ fn main() {
 // # CSV query (multi-word query)
 // cargo run  -- csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate the average sales for all customers."
 
-// main idea
+// main steps here so I keep track of them
 // fn main() {
 //     unsafe {
 //         llama_backend_init();
@@ -556,7 +556,7 @@ fn main() {
 
 // - Loading a local LLaMA model from models/llama-2-7b-chat.Q4_0.gguf using the C API (llama.cpp library) via Rust's extern "C" FFI.
 //
-// - Initializing a sampler (you’re switching between temperature sampling and greedy sampling).
+// - Initializing a sampler ( switching between temperature sampling and greedy sampling).
 //
 // - Taking user input from the terminal (> prompt).
 //
@@ -570,12 +570,11 @@ fn main() {
 //
 // - Repeating until I type "exit".
 //
-// So it’s a minimal interactive text generation REPL for LLaMA models, similar to the official llama-cli but written entirely in Rust and FFI bindings.
 
 // +--------------------+         FFI bindings         +-------------------+
 // |                    | <---------------------------->|                   |
 // |      Rust Code   | calls C functions via extern  |    llama.cpp C    |
-// |  (main.rs & async) |       "C" ABI (FFI)           |    model & API    |
+// |  (main.rs     ) |       "C" ABI (FFI)           |    model & API    |
 // |                    |                              |                   |
 // +--------------------+                              +-------------------+
 // |                                                      ^
