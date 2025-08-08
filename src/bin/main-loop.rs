@@ -201,8 +201,8 @@ enum Commands {
     /// Query a CSV file
     Csv {
         csv_path: String,
-        query: Vec<String>,
         output_path: String,
+        query: Vec<String>,
     },
 }
 
@@ -222,13 +222,16 @@ unsafe fn generate_text(
     assert!(!mem.is_null(), "Memory pointer is null");
     llama_memory_clear(mem, true);
 
+    let full_prompt = with_instruction(&prompt);
     // Tokenize the prompt string into model tokens
-    let prompt_c = CString::new(prompt).unwrap();
+    // let prompt_c = CString::new(prompt).unwrap();
+    let prompt_c = CString::new(full_prompt.clone()).unwrap();
     let mut tokens = [0i32; 512];
     let n_tokens = llama_tokenize(
         vocab,
         prompt_c.as_ptr(),
         prompt.len() as i32,
+        // prompt.len() as i32,
         tokens.as_mut_ptr(),
         tokens.len() as i32,
         true,  // add_special tokens
@@ -359,6 +362,25 @@ use std::fs::File;
 use std::io::Write;
 use clap::Subcommand;
 
+fn read_csv_with_header(csv_path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let content = std::fs::read_to_string(csv_path)?;
+
+    // Check if the first line looks like a header (contains alphabetic characters)
+    let first_line = content.lines().next().unwrap_or("");
+    let has_header = first_line.chars().any(|c| c.is_alphabetic());
+
+    let full_csv = if has_header {
+        content
+    } else {
+        println!("No headers in the file");
+        "No headers in the file".to_string()
+        // Prepend your known header line if missing
+        // let header = "customer_name,sales\n";
+        // format!("{}{}", header, content)
+    };
+
+    Ok(full_csv)
+}
 unsafe fn run_csv_query(
     ctx: *mut LlamaContext,
     vocab: *const LlamaVocab,
@@ -368,15 +390,20 @@ unsafe fn run_csv_query(
     prompt_template: &str,
     output_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let csv_text = read_csv_file(csv_path)?;
+    // let csv_text = read_csv_file(csv_path)?;
+    let csv_text = read_csv_with_header(csv_path)?;
+    println!("CSV content:\n{}", csv_text);
     // Create prompt combining csv data + question
     // let prompt = format!(
     //     "Given the following CSV data:\n{}\n\n{}",
     //     csv_text, query
     // );
 
+
+    let prompt_template = prompt_template.replace("\\n", "\n");
     // Replace placeholder {csv} in prompt template with csv_text
     let prompt = prompt_template.replace("{csv}", &csv_text);
+    println!("Final prompt sent to model:\n{}", prompt);
     let generated = generate_text(ctx, vocab, sampler, &prompt);
 
     // Save generated output to file
@@ -386,6 +413,10 @@ unsafe fn run_csv_query(
     println!("Generated output saved to {}", output_path);
 
     Ok(())
+}
+
+fn with_instruction(prompt: &str) -> String {
+    format!("Answer ONLY the question below concisely:\n\n{}", prompt)
 }
 
 fn main() {
@@ -468,7 +499,7 @@ fn main() {
                 }
             }
             Commands::File { filename } => {
-                let text = fs::read_to_string(filename)?;
+                let text = fs::read_to_string(filename).unwrap();
                 generate_text(ctx, vocab, sampler, &text);
             }
             Commands::Prompt { text } => {
@@ -477,38 +508,26 @@ fn main() {
             }
             Commands::Csv {
                 csv_path,
-                query,
                 output_path,
+                query,
             } => {
                 let prompt_template = query.join(" ").replace("\\n", "\n");
-                run_csv_query(ctx, vocab, sampler, &csv_path, &prompt_template, &output_path)?;
+
+                run_csv_query(ctx, vocab, sampler, &csv_path, &prompt_template, &output_path).unwrap();
             }
         }
-        // let csv_path = "data/sales.csv";
-        // let csv_data = "\
-        //     product,sales
-        //     A,300
-        //     B,500
-        //     C,12
-        //     D,400";
-        // let query = """Return only the top 2 sales.""";
-        // let query = format!(
-        //     "Here is the sales data in CSV format:\n\n{}\n\nReturn only the top 2 sales rows, sorted by sales descending, with no explanation or extra text. Output CSV format only.",
-        //     csv_data
-        // );
-        // println!("printing before csv");
-        // let generated = generate_text(ctx, vocab, sampler, &query);
-        //
-        // println!("\nGenerated output:\n{}", generated);
-        //
-        // // Optionally, write to file
-        // std::fs::write("output.txt", generated).expect("Failed to write output.txt");
-        // let query = "Look at data/sales.csv, Return only the top 2 sales rows, sorted by sales descending";
-        // Please write a SQL query that returns the top 2 sales rows sorted by sales descending.
 
-            // run_csv_query(ctx, vocab, sampler, csv_path, query.as_str(), "output.txt").unwrap();
-        // run_csv_query(ctx, vocab, sampler, csv_path, query, "output_sales.txt").unwrap();
-
+        // # REPL chat mode
+        // cargo run --bin main-loop -- chat
+        //
+        // # Generate from file
+        // cargo run --bin main-loop -- file prompts.txt
+        //
+        // # Generate from prompt (multi-word)
+        // cargo run --bin main-loop -- prompt Explain Rust ownership rules
+        //
+        // # CSV query (multi-word query)
+        // cargo run --bin main-loop -- csv ./data/sales.csv ./output.txt List all unique customers
 
         llama_sampler_free(sampler);
         llama_free(ctx);
