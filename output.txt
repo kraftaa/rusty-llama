@@ -1,0 +1,3 @@
+
+
+Note: The sales data is in the format of "product,sales", where "product" is the name of the product and "sales" is the amount of sales for that product.</s>
