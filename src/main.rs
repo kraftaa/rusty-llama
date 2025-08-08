@@ -179,6 +179,9 @@ use clap::{Parser};
 #[derive(Parser)]
 #[command(author, version, about)]
 struct Cli {
+    #[arg(short, long, default_value = "models/llama-2-7b-chat.gguf")]
+    model: String,
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -270,10 +273,15 @@ unsafe fn generate_text(
     let mut generated_tokens = Vec::new();
     let mut output = String::new();
     let mut newline_count = 0;
+    let stop_tokens = vec![2 /* EOS */, 26077 /* " unwanted token IDs here */];
+
 
     for _ in 0..max_tokens {
         let next_token = generated_tokens.last().unwrap_or(&tokens[n_past as usize - 1]);
         // implement breaking after 3 new lines
+        if stop_tokens.contains(&next_token) {
+            break;
+        }
         if next_token == &13 {  // newline
             newline_count += 1;
             if newline_count >= 3 {
@@ -446,10 +454,14 @@ fn with_instruction(prompt: &str) -> String {
 fn main() {
     unsafe {
         llama_backend_init();
+        let cli = Cli::parse();
+        let model_path_cstr = CString::new(cli.model.clone()).unwrap();
+        println!("model path {:?}", model_path_cstr);
+        // let model = llama_load_model_from_file(model_path_cstr.as_ptr(), model_params);
 
-        let model_path = CString::new("models/llama-2-7b-chat.Q4_0.gguf").unwrap();
+        // let model_path = CString::new("models/llama-2-7b-chat.Q4_0.gguf").unwrap();
         let model_params = llama_model_default_params();
-        let model = llama_load_model_from_file(model_path.as_ptr(), model_params);
+        let model = llama_load_model_from_file(model_path_cstr.as_ptr(), model_params);
         assert!(!model.is_null(), "Failed to load model");
 
         let ctx_params = llama_context_default_params();
@@ -462,7 +474,6 @@ fn main() {
         let sampler = llama_sampler_init_greedy();
         assert!(!sampler.is_null(), "Failed to init sampler");
 
-        let cli = Cli::parse();
         match cli.command {
             Commands::Chat => {
                 // REPL chat mode
