@@ -20,7 +20,7 @@ The executable loads the model file at runtime and uses the shared library for i
 
 What you need to run the program
 
-Rust executable (e.g., `llama_ffi_demo`) — compiled for your platform.
+Rust executable (e.g., `llama_ffi_demo`) — compiled for macOS platform.
 
 Shared library (`libggml.dylib`) — compiled from `llama.cpp` for your platform.
 
