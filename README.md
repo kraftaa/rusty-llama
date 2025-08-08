@@ -101,6 +101,3 @@ The executable and shared library are platform-specific.
 The model files must be downloaded and provided by the user separately.
 
 The program dynamically loads the model at runtime and performs inference locally without internet.
-
-License
-MIT License. See LICENSE for details.
