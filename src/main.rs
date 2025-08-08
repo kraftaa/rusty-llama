@@ -179,7 +179,7 @@ use clap::{Parser};
 #[derive(Parser)]
 #[command(author, version, about)]
 struct Cli {
-    #[arg(short, long, default_value = "models/llama-2-7b-chat.gguf")]
+    #[arg(short, long, default_value = "models/llama-2-7b-chat.Q4_0.gguf")]
     model: String,
 
     #[command(subcommand)]
