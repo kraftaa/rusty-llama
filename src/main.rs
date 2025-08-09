@@ -85,6 +85,11 @@ pub struct LlamaSamplerI {
 }
 #[repr(C)]
 pub struct SamplerParams;  // Opaque pointer type
+#[repr(C)]
+#[derive(Copy, Clone, Debug)]
+pub struct LlamaSamplerChainParams {
+    // _private: [u8; SIZE], // ???
+}
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -153,7 +158,7 @@ extern "C" {
     // Instead of llama_token_to_str
     fn llama_token_get_text(ctx: *const LlamaContext, token: i32) -> *const c_char;
 
-    fn llama_sampler_create(params: *const SamplerParams) -> *mut LlamaSampler;
+    // fn llama_sampler_create(params: *const SamplerParams) -> *mut LlamaSampler;
     // pub fn llama_get_memory(ctx: *mut LlamaContext) -> *mut llama_memory;
     // DEPRECATED(LLAMA_API struct llama_kv_cache * llama_get_kv_self(struct llama_context * ctx), "use llama_get_memory instead");
     // pub fn llama_get_memory(ctx: *const LlamaContext) -> llama_memory_t;
@@ -170,6 +175,13 @@ extern "C" {
     pub fn llama_sampler_init_temp_ext(t: f32, delta: f32, exponent: f32) -> *mut LlamaSampler;
 
     // LLAMA_API struct llama_sampler * llama_sampler_init_temp_ext   (float   t, float   delta, float exponent);
+
+    pub fn llama_sampler_chain_default_params() -> LlamaSamplerChainParams;
+    pub fn llama_sampler_chain_init(params: LlamaSamplerChainParams) -> *mut LlamaSampler;
+    pub fn llama_sampler_chain_add(chain: *mut LlamaSampler, smpl: *mut LlamaSampler);
+
+    pub fn llama_sampler_init_top_k(k: i32) -> *mut LlamaSampler;
+    pub fn llama_sampler_init_top_p(p: f32, min_keep: usize) -> *mut LlamaSampler;
 
 
 }
@@ -494,6 +506,15 @@ fn main() {
 
         let vocab = llama_model_get_vocab(model);
         assert!(!vocab.is_null(), "Failed to get vocab");
+
+        // let sampler = llama_sampler_init_greedy();
+        // assert!(!sampler.is_null(), "Failed to init sampler");
+        let params = llama_sampler_chain_default_params();
+        let chain = llama_sampler_chain_init(params);
+        llama_sampler_chain_add(chain, llama_sampler_init_top_k(50));
+        llama_sampler_chain_add(chain, llama_sampler_init_top_p(0.9, 1));
+        llama_sampler_chain_add(chain, llama_sampler_init_temp(0.5));
+        llama_sampler_chain_add(chain, llama_sampler_init_greedy());
 
         let sampler = llama_sampler_init_greedy();
         assert!(!sampler.is_null(), "Failed to init sampler");
