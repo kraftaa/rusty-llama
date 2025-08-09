@@ -1,45 +1,26 @@
 ### llama-rs: Rust CLI for LLaMA Model Inference
 
 ### Overview
+`rusty-llama` is a Rust command-line tool for running Meta’s LLaMA language models locally using the efficient llama.cpp backend. It uses Rust’s FFI to call the native llama.cpp shared library (`libggml.dylib`) for fast, offline text generation on your machine.
 
-`llama-rs` is a Rust command-line tool that provides local inference of Meta’s LLaMA language model using the efficient llama.cpp backend.
+### Important Notes
+Built and tested on macOS (Apple Silicon arm64). The provided `libggml.dylib` and executable target macOS only.
 
-This project uses Rust FFI to call the native llama.cpp shared library (`libggml.dylib`) for fast text generation on the local machine.
+Linux and Windows require separate builds and compatible shared libraries (WIP).
 
-### Important Notes on Build and Usage
+This project does not include model files due to size and licensing restrictions. You must download and provide your own LLaMA model files (e.g., .gguf or .bin).
 
-Built on macOS (Apple Silicon arm64) — the distributed `libggml.dylib` and executable are compiled for macOS only.
+The executable loads models at runtime and runs inference locally — no internet required.
 
-Linux or Windows versions require separate builds and compatible shared libraries.
+### What You Need
+Rust executable (`rusty_llama`) compiled for macOS (provided)
 
-The program does NOT include model files due to their large size and licensing restrictions.
+Native shared library (`libggml.dylib`) compiled from llama.cpp for macOS (provided)
 
-Users should separately download and provide their own LLaMA model files (e.g., .gguf or .bin files).
-
-The executable loads the model file at runtime and uses the shared library for inference.
-
-### What you need to run the program
-
-Rust executable (e.g., `rusty_llama`) — compiled for macOS platform - provided.
-
-Shared library (`libggml.dylib`) — compiled from `llama.cpp` for macOS platform - provided.
-
-LLaMA model files — pre-trained weights, not included in this repo or distribution.
-You should download these separately, following official or community sources, and place them in an accessible folder.
-
-### How to use
-
-Download or clone this repo or release archive.
-
+Pre-trained LLaMA model files (download separately)
 
 ### Downloading the Model
-
-Before running the app, you need to download the model files separately because they are large and subject to licensing.
-
-The default model name is  `llama-2-7b-chat.Q4_0.gguf` (if no model's path provided in command line via `-- --model models/name` )
-
-You can download a standard quantized model like this:
-
+Download model files separately — here’s how to grab a quantized LLaMA-2 7B model:
 
 ```shell
 mkdir -p models
@@ -47,117 +28,104 @@ wget -O models/ggml-model-q4_0.gguf \
   https://huggingface.co/TheBloke/LLaMA-2-7B-GGUF/resolve/main/llama-2-7b.Q4_0.gguf
 ```
 
-For chat usage, it’s better to download the chat-optimized model:
+For chat, grab the chat-optimized model:
 
 ```shell
 wget -O models/llama-2-7b-chat.gguf \
   https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.gguf
 ```
 
-Place the model file(s) somewhere, e.g. `./models/llama-2-7b-chat.Q4_0.gguf`
+Place your model files somewhere accessible, e.g., `./models/llama-2-7b-chat.Q4_0.gguf`.
 
-#### Ensure the native library folder is set in your environment
-
-macOS users:
+### Set Native Library Path
+On macOS, set the environment variable to load the native shared library:
 
 ```shell
 export DYLD_LIBRARY_PATH=$(pwd)/bundle
 ```
 
-### REPL chat mode
+### Usage
+#### REPL Chat Mode
+
 ```shell
-./rusty_llama  chat
-
-or 
-
+./rusty_llama chat
+# or
 cargo run -- chat
 ```
-Hint: In order to receive the precise answer, formulate your question like `> Question: What is the day of the week today? Give me the name only.`
 
-### Generate from file
-
+Tip: To get precise answers, format your question clearly, e.g.:
 ```shell
-./rusty_llama file prompts.txt
-``` 
-
-### Generate from prompt (multi-word)
-
-```shell
-./rusty_llama prompt "Explain Rust ownership rules"
-``` 
-
-### CSV query (multi-word query)
-
-```shell
-./rusty_llama csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate and output only the numeric average sales. Do not provide explanations or additional text. Answer:"
-
+> Question: What is the day of the week today? Give me the name only.
 ```
 
-#### This command:
+#### Generate from File
+```shell
+./rusty_llama file prompts.txt
+```
 
-Reads CSV data from `./data/sales.csv`.
+#### Generate from Prompt
+```shell
+./rusty_llama prompt "Explain Rust ownership rules"
+```
 
-Inserts CSV content into the prompt where `{csv}` is placed.
+#### CSV Query Mode
+```shell
+./rusty_llama csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate and output only the numeric average sales. Do not provide explanations or additional text. Answer:"
+```
+Reads CSV data from `./data/sales.csv`
 
-Queries the model for an answer.
+Inserts CSV contents into the prompt where {csv} is placed
 
-Saves the generated output to `./output.txt`.
+Queries the model and writes output to `./output.txt`
 
 ### Optional Parameters
+Customize generation with these flags:
 
-You can customize the text generation behavior by passing optional command-line arguments:
+`--temperature <value> `(e.g., 0.5) — randomness of output
 
-`--temperature <value>` — Controls randomness of the output (e.g., 0.5).
+-`-top-k <value>` (e.g., 40) — sample from top-k tokens
 
-`--top-k <value>` — Limits sampling to the top k tokens (e.g., 40).
+`--top-p <value>` (e.g., 0.9) — nucleus sampling probability
 
-`--top-p <value>` — Nucleus sampling probability threshold (e.g., 0.9).
-
-#### Example usage
+#### Example:
 
 ```shell
 ./rusty_llama chat --temperature 0.5 --top-k 40 --top-p 0.9
 ```
 
-### Run the wrapper script
+#### Python and Ruby Wrappers
 
-Both Python and Ruby script allow chat, prompt and csv usage.
+Quickly interact with your models using these simple scripts:
 
-##### For Python:
 ```shell
-
 python3 rusty-llama.py --model ./models/llama-2-7b-chat.Q4_0.gguf chat
 ```
-
-##### For Ruby:
 
 ```shell
 ruby rusty-llama.rb --model ./models/llama-2-7b-chat.Q4_0.gguf chat
 ```
 
-### Using Makefile
+#### Makefile Commands
+```shell
+make download_models — download example models
 
-#### Download models
-`make download_models`
+make run_chat — start chat mode
 
-#### Run chat mode
-`make run_chat`
+make run_prompt — run prompt mode with your input
+```
 
-#### Run prompt mode with your question
-`make run_prompt`
+### Building from Source (macOS)
 
-
-### Building from source
-
-If you want to build the executable yourself on macOS:
-
-Clone and build the llama.cpp shared library:
+Install dependencies:
 
 ```shell
 xcode-select --install
-brew install libomp
-brew install cmake
+brew install libomp cmake
+```
 
+Clone and build llama.cpp shared library:
+
+```shell
 git clone https://github.com/ggerganov/llama.cpp.git
 cd llama.cpp
 mkdir build && cd build
@@ -165,16 +133,19 @@ cmake .. -DBUILD_SHARED_LIBS=ON -DCMAKE_BUILD_TYPE=Release
 cmake --build . --config Release
 ```
 
-### Build the Rust CLI:
+Build the Rust CLI:
 
-````shell
+```shell
 cargo build --release
-````
+```
 
-### Summary:
+### Summary
 
-The executable and shared library are platform-specific.
+- Platform-specific executable and shared library (provided for macOS Apple Silicon )
 
-The model files must be downloaded and provided by the user separately.
+- Model files must be downloaded separately
 
-The program dynamically loads the model at runtime and performs inference locally without internet.
+- Runs LLaMA models fully offline with local GPU acceleration via Metal
+
+- Flexible CLI and language wrappers make interacting easy
+
