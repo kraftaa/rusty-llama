@@ -183,6 +183,9 @@ extern "C" {
     pub fn llama_sampler_init_top_k(k: i32) -> *mut LlamaSampler;
     pub fn llama_sampler_init_top_p(p: f32, min_keep: usize) -> *mut LlamaSampler;
 
+    pub fn llama_sampler_init_dist(seed: u32) -> *mut LlamaSampler;
+
+
 
 }
 
@@ -193,6 +196,18 @@ use clap::{Parser};
 struct Cli {
     #[arg(short, long, default_value = "models/llama-2-7b-chat.Q4_0.gguf")]
     model: String,
+
+    /// Temperature for sampling (e.g. 0.8)
+    #[arg(long, default_value_t = 0.0)]
+    temperature: f32,
+
+    /// Top-k sampling (e.g. 50)
+    #[arg(long, default_value_t = 0)]
+    top_k: i32,
+
+    /// Top-p sampling (nucleus) (e.g. 0.9)
+    #[arg(long, default_value_t = 0.0)]
+    top_p: f32,
 
     #[command(subcommand)]
     command: Commands,
@@ -487,10 +502,49 @@ fn with_instruction(prompt: &str) -> String {
     )
 }
 
+unsafe fn setup_sampler(cli: &Cli) -> *mut LlamaSampler {
+    // Initialize default sampler chain params
+    let params = llama_sampler_chain_default_params();
+    let chain = llama_sampler_chain_init(params);
+
+    // Add top_k sampler if top_k > 0
+    if cli.top_k > 0 {
+        let top_k_sampler = llama_sampler_init_top_k(cli.top_k as i32);
+        llama_sampler_chain_add(chain, top_k_sampler);
+    }
+
+    // Add top_p sampler if top_p is between 0 and 1
+    if cli.top_p > 0.0 && cli.top_p < 1.0 {
+        let top_p_sampler = llama_sampler_init_top_p(cli.top_p, 1);
+        llama_sampler_chain_add(chain, top_p_sampler);
+    }
+
+    // Add temperature sampler if temperature > 0
+    if cli.temperature > 0.0 {
+        let temp_sampler = llama_sampler_init_temp(cli.temperature);
+        llama_sampler_chain_add(chain, temp_sampler);
+    }
+
+    use rand::Rng;
+
+    let seed: u32 = rand::thread_rng().gen();
+    let dist_sampler = llama_sampler_init_dist(seed);
+
+    // Always add a final sampler to pick actual tokens (greedy here)
+    let greedy_sampler = llama_sampler_init_greedy();
+    llama_sampler_chain_add(chain, greedy_sampler);
+
+    chain
+}
+
 fn main() {
     unsafe {
         llama_backend_init();
         let cli = Cli::parse();
+
+        println!("Temperature: {}", cli.temperature);
+        println!("Top-k: {}", cli.top_k);
+        println!("Top-p: {}", cli.top_p);
         let model_path_cstr = CString::new(cli.model.clone()).unwrap();
         println!("model path {:?}", model_path_cstr);
         // let model = llama_load_model_from_file(model_path_cstr.as_ptr(), model_params);
@@ -509,14 +563,39 @@ fn main() {
 
         // let sampler = llama_sampler_init_greedy();
         // assert!(!sampler.is_null(), "Failed to init sampler");
-        let params = llama_sampler_chain_default_params();
-        let chain = llama_sampler_chain_init(params);
-        llama_sampler_chain_add(chain, llama_sampler_init_top_k(50));
-        llama_sampler_chain_add(chain, llama_sampler_init_top_p(0.9, 1));
-        llama_sampler_chain_add(chain, llama_sampler_init_temp(0.5));
-        llama_sampler_chain_add(chain, llama_sampler_init_greedy());
+        // let params = llama_sampler_chain_default_params();
+        // let chain = llama_sampler_chain_init(params);
+        // assert!(!chain.is_null(), "Failed to init sampler chain");
+        //
+        // if cli.top_k > 0 {
+        //     let top_k_sampler = llama_sampler_init_top_k(cli.top_k);
+        //     llama_sampler_chain_add(chain, top_k_sampler);
+        // }
+        //
+        // if cli.top_p > 0.0 && cli.top_p < 1.0 {
+        //     let top_p_sampler = llama_sampler_init_top_p(cli.top_p, 1);
+        //     llama_sampler_chain_add(chain, top_p_sampler);
+        // }
+        //
+        // if cli.temperature > 0.0 {
+        //     let temp_sampler = llama_sampler_init_temp(cli.temperature);
+        //     llama_sampler_chain_add(chain, temp_sampler);
+        // }
 
-        let sampler = llama_sampler_init_greedy();
+        // End chain with greedy or dist sampler (for actual token selection)
+        // use rand::Rng;
+
+        // let seed: u32 = rand::thread_rng().gen();
+        // let dist_sampler = llama_sampler_init_dist(seed);
+        // llama_sampler_chain_add(chain, llama_sampler_init_top_k(50));
+        // llama_sampler_chain_add(chain, llama_sampler_init_top_p(0.9, 1));
+        // llama_sampler_chain_add(chain, llama_sampler_init_temp(0.5));
+        // llama_sampler_chain_add(chain, llama_sampler_init_greedy());
+        // let greedy_sampler = llama_sampler_init_greedy();
+        // llama_sampler_chain_add(chain, greedy_sampler);
+        // let sampler = llama_sampler_init_greedy();
+        // let sampler = chain;
+        let sampler = setup_sampler(&cli);
         assert!(!sampler.is_null(), "Failed to init sampler");
 
         match cli.command {
@@ -531,7 +610,7 @@ fn main() {
                     io::stdin().read_line(&mut input).unwrap();
                     let input = input.trim();
 
-                    if input == "exit" {
+                    if input == "exit" || input.eq_ignore_ascii_case("exit"){
                         break;
                     }
 
