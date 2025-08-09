@@ -1,11 +1,13 @@
 [package]
-name = "llama_ffi_demo"
+name = "rusty_llama"
 version = "0.1.0"
 edition = "2021"
 build = "build.rs"
 
 [dependencies]
 libc = "0.2"
+csv = "*"
+clap = { version = "4.5.43", features = ["derive"] }
 
 [build-dependencies]
 cc = "1.0"
