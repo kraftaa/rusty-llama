@@ -22,7 +22,7 @@ The executable loads the model file at runtime and uses the shared library for i
 
 Rust executable (e.g., `rusty_llama`) — compiled for macOS platform - provided.
 
-Shared library (`libggml.dylib`) — compiled from `llama.cpp` for your platform - provided.
+Shared library (`libggml.dylib`) — compiled from `llama.cpp` for macOS platform - provided.
 
 LLaMA model files — pre-trained weights, not included in this repo or distribution.
 You should download these separately, following official or community sources, and place them in an accessible folder.
