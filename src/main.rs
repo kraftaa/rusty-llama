@@ -190,6 +190,11 @@ struct Cli {
 enum Commands {
     /// Interactive chat mode
     Chat,
+    // Chat {
+        /// If set, the model will answer briefly with no explanations
+        // #[arg(short, long)]
+        // brief: bool,
+    // },
     /// Generate from a file
     File {
         filename: String,
@@ -369,8 +374,24 @@ unsafe fn generate_text(
         n_past += 1;
         generated_tokens.push(next_token);
     }
+    let output = output.trim();
+
+    let output = output.trim_end_matches(|c: char| {
+        c.is_whitespace() || c == '.' || c == ',' || c == '\n' || c == '\r'
+    });
     println!();
-    output
+    // fn extract_first_sentence(output: &str) -> &str {
+    //     // Split by sentence-ending punctuation or newline
+    //     output.split_terminator(['.', '\n'])
+    //         .next()
+    //         .unwrap_or("")
+    //         .trim()
+    // }
+    //
+    // let raw_output = run_llama(prompt); // however you're calling llama
+    // let answer = extract_first_sentence(&raw_output);
+    // println!("{}", answer);
+    output.to_string()
 }
 
 use csv::Reader;
@@ -446,10 +467,12 @@ unsafe fn run_csv_query(
 // "Provide ONLY the direct answer below. DO NOT repeat the question or add explanations.\n\n{}",
 // "Provide ONLY the numeric answer below, as an integer, with no text, punctuation, or explanation.\n\n{}",
 
+// fn with_instruction(prompt: &str, brief: bool) -> String {
 fn with_instruction(prompt: &str) -> String {
     format!(
-        "Provide ONLY the direct answer below.\n\n{} ",
-         prompt)
+        "You are a precise assistant. Answer the Question:\n\n{}",
+        prompt
+    )
 }
 
 fn main() {
@@ -476,6 +499,7 @@ fn main() {
         assert!(!sampler.is_null(), "Failed to init sampler");
 
         match cli.command {
+            // Commands::Chat { brief } => {
             Commands::Chat => {
                 // REPL chat mode
                 loop {
@@ -490,6 +514,13 @@ fn main() {
                         break;
                     }
 
+                    // let final_input = if brief {
+                    //     format!("Provide ONLY the direct answer. No explanations.\n\n{}", input)
+                    // } else {
+                    //     input.to_string()
+                    // };
+
+                    // generate_text(ctx, vocab, sampler, input);
                     generate_text(ctx, vocab, sampler, input);
                 }
             }
