@@ -41,6 +41,7 @@ or
 
 cargo run -- chat
 ```
+Hint: In order to receive the precise answer, formulate your question like `> Question: What is the day of the week today? Give me the name only.`
 
 ### Generate from file
 
