@@ -29,12 +29,43 @@ You should download these separately, following official or community sources, a
 
 ### How to use
 
-The default model `llama-2-7b-chat.Q4_0.gguf` (if no model's path provided in command line via `-- --model models/name` )
-Assuming you have the model in `models/...` required files in the same directory, you can run:
+Download or clone this repo or release archive.
 
+
+### Downloading the Model
+
+Before running the app, you need to download the model files separately because they are large and subject to licensing.
+
+The default model name is  `llama-2-7b-chat.Q4_0.gguf` (if no model's path provided in command line via `-- --model models/name` )
+
+You can download a standard quantized model like this:
+
+
+```shell
+mkdir -p models
+wget -O models/ggml-model-q4_0.gguf \
+  https://huggingface.co/TheBloke/LLaMA-2-7B-GGUF/resolve/main/llama-2-7b.Q4_0.gguf
+```
+
+For chat usage, it’s better to download the chat-optimized model:
+
+```shell
+wget -O models/llama-2-7b-chat.gguf \
+  https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.gguf
+```
+
+Place the model file(s) somewhere, e.g. `./models/llama-2-7b-chat.Q4_0.gguf`
+
+#### Ensure the native library folder is set in your environment
+
+macOS users:
+
+```shell
+export DYLD_LIBRARY_PATH=$(pwd)/bundle
+```
 
 ### REPL chat mode
-```
+```shell
 ./rusty_llama  chat
 
 or 
@@ -45,19 +76,19 @@ Hint: In order to receive the precise answer, formulate your question like `> Qu
 
 ### Generate from file
 
-```
+```shell
 ./rusty_llama file prompts.txt
 ``` 
 
 ### Generate from prompt (multi-word)
 
-```
+```shell
 ./rusty_llama prompt "Explain Rust ownership rules"
 ``` 
 
 ### CSV query (multi-word query)
 
-```
+```shell
 ./rusty_llama csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate and output only the numeric average sales. Do not provide explanations or additional text. Answer:"
 
 ```
@@ -87,6 +118,32 @@ You can customize the text generation behavior by passing optional command-line 
 ```shell
 ./rusty_llama chat --temperature 0.5 --top-k 40 --top-p 0.9
 ```
+
+### Run the wrapper script
+
+##### For Python:
+```shell
+
+python3 rusty-llama.py --model ./models/llama-2-7b-chat.Q4_0.gguf chat
+```
+
+##### For Ruby:
+
+```shell
+ruby rusty-llama.rb --model ./models/llama-2-7b-chat.Q4_0.gguf chat
+```
+
+### Using Makefile
+
+#### Download models
+`make download_models`
+
+#### Run chat mode
+`make run_chat`
+
+#### Run prompt mode with your question
+`make run_prompt`
+
 
 ### Building from source
 
