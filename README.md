@@ -19,7 +19,14 @@ Native shared library (`libggml.dylib`) compiled from llama.cpp for macOS (provi
 
 Pre-trained LLaMA model files (download separately)
 
-### Downloading the Model
+### Usage
+
+#### Releases / Download Binaries
+
+Prebuilt binaries and the required libggml.dylib shared library for macOS (Apple Silicon), and Python & Ruby wrapper files are available in the `release` folder.
+Run all commands from inside that folder for convenience.
+
+#### Downloading the Model
 Download model files separately — here’s how to grab a quantized LLaMA-2 7B model:
 
 ```shell
@@ -37,14 +44,15 @@ wget -O models/llama-2-7b-chat.gguf \
 
 Place your model files somewhere accessible, e.g., `./models/llama-2-7b-chat.Q4_0.gguf`.
 
-### Set Native Library Path
+
+#### Set Native Library Path
 On macOS, set the environment variable to load the native shared library:
 
 ```shell
 export DYLD_LIBRARY_PATH=$(pwd)/bundle
 ```
 
-### Usage
+
 #### REPL Chat Mode
 
 ```shell
@@ -78,7 +86,7 @@ Inserts CSV contents into the prompt where {csv} is placed
 
 Queries the model and writes output to `./output.txt`
 
-### Optional Parameters
+#### Optional Parameters
 Customize generation with these flags:
 
 `--temperature <value> `(e.g., 0.5) — randomness of output
