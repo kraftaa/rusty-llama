@@ -560,7 +560,7 @@ fn main() {
 // cargo run -- prompt Explain Rust ownership rules
 //
 // # CSV query (multi-word query)
-// cargo run  -- csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate the average sales for all customers."
+// cargo run -- csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate and output only the numeric average sales. Do not provide explanations or additional text. Answer:"
 
 // main steps here so I keep track of them
 // fn main() {
