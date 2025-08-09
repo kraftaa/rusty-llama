@@ -1,4 +1,4 @@
-### llama-rs: Rust CLI for LLaMA Model Inference
+### rusty-llama: Rust CLI for LLaMA Model Inference
 
 ### Overview
 `rusty-llama` is a Rust command-line tool for running Meta’s LLaMA language models locally using the efficient llama.cpp backend. It uses Rust’s FFI to call the native llama.cpp shared library (`libggml.dylib`) for fast, offline text generation on your machine.
