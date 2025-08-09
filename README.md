@@ -121,6 +121,8 @@ You can customize the text generation behavior by passing optional command-line 
 
 ### Run the wrapper script
 
+Both Python and Ruby script allow chat, prompt and csv usage.
+
 ##### For Python:
 ```shell
 
