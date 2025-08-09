@@ -20,7 +20,7 @@ The executable loads the model file at runtime and uses the shared library for i
 
 ### What you need to run the program
 
-Rust executable (e.g., `llama_ffi_demo`) — compiled for macOS platform - provided.
+Rust executable (e.g., `rusty_llama`) — compiled for macOS platform - provided.
 
 Shared library (`libggml.dylib`) — compiled from `llama.cpp` for your platform - provided.
 
@@ -35,29 +35,29 @@ Assuming you have the model in `models/...` required files in the same directory
 
 ### REPL chat mode
 ```
-./llama_ffi_demo  chat
+./rusty_llama  chat
 
 or 
 
-cargo run chat
+cargo run -- chat
 ```
 
 ### Generate from file
 
 ```
-./llama_ffi_demo file prompts.txt
+./rusty_llama file prompts.txt
 ``` 
 
 ### Generate from prompt (multi-word)
 
 ```
-./llama_ffi_demo prompt "Explain Rust ownership rules"
+./rusty_llama prompt "Explain Rust ownership rules"
 ``` 
 
 ### CSV query (multi-word query)
 
 ```
-./llama_ffi_demo csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate the average sales for all customers.\nAnswer ONLY with the numeric average."
+./rusty_llama csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate the average sales for all customers.\nAnswer ONLY with the numeric average."
 ```
 
 ### This command:
