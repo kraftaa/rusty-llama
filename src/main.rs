@@ -442,13 +442,14 @@ unsafe fn run_csv_query(
 
     Ok(())
 }
+// "Answer ONLY the question below concisely:\n\n{}",
+// "Provide ONLY the direct answer below. DO NOT repeat the question or add explanations.\n\n{}",
+// "Provide ONLY the numeric answer below, as an integer, with no text, punctuation, or explanation.\n\n{}",
 
 fn with_instruction(prompt: &str) -> String {
     format!(
-            // "Answer ONLY the question below concisely:\n\n{}",
-            "Provide ONLY the direct answer below. DO NOT repeat the question or add explanations.\n\n{}",
-        // "Provide ONLY the numeric answer below, as an integer, with no text, punctuation, or explanation.\n\n{}",
-        prompt)
+        "Provide ONLY the direct answer below.\n\n{} ",
+         prompt)
 }
 
 fn main() {
