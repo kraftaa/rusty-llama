@@ -58,10 +58,11 @@ Hint: In order to receive the precise answer, formulate your question like `> Qu
 ### CSV query (multi-word query)
 
 ```
-./rusty_llama csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate the average sales for all customers.\nAnswer ONLY with the numeric average."
+./rusty_llama csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate and output only the numeric average sales. Do not provide explanations or additional text. Answer:"
+
 ```
 
-### This command:
+#### This command:
 
 Reads CSV data from `./data/sales.csv`.
 
@@ -70,6 +71,22 @@ Inserts CSV content into the prompt where `{csv}` is placed.
 Queries the model for an answer.
 
 Saves the generated output to `./output.txt`.
+
+### Optional Parameters
+
+You can customize the text generation behavior by passing optional command-line arguments:
+
+`--temperature <value>` — Controls randomness of the output (e.g., 0.5).
+
+`--top-k <value>` — Limits sampling to the top k tokens (e.g., 40).
+
+`--top-p <value>` — Nucleus sampling probability threshold (e.g., 0.9).
+
+#### Example usage
+
+```shell
+./rusty_llama chat --temperature 0.5 --top-k 40 --top-p 0.9
+```
 
 ### Building from source
 
