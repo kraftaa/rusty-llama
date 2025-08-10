@@ -1,74 +1,83 @@
-// llama.rs
-use std::ffi::CString;
+use std::ffi::{CString, CStr};
 use std::{io, ptr};
 use std::fs::File;
 use std::io::Write;
-use std::os::raw::c_char;
-use crate::ffi::*;
-use clap::Subcommand;
-use std::ffi::CStr;
 use std::slice;
-pub struct Model {
-    pub ptr: *mut LlamaModel,
-}
 
-impl Model {
-    pub fn load(path: &str, params: LlamaModelParams) -> Result<Self, String> {
-        let c_path = CString::new(path).map_err(|_| "Invalid path string")?;
-        let model_ptr = unsafe { llama_load_model_from_file(c_path.as_ptr(), params) };
+use crate::ffi::*;
+use clap::{Parser, Subcommand};
 
-        if model_ptr.is_null() {
-            Err("Failed to load model".into())
-        } else {
-            Ok(Model { ptr: model_ptr })
-        }
-    }
-}
+use std::ptr::NonNull;
 
-impl Drop for Model {
-    fn drop(&mut self) {
-        unsafe { llama_free_model(self.ptr) };
-    }
-}
+// pub struct Model {
+//     ptr: NonNull<LlamaModel>,
+//     _path_cstring: CString, // keep CString alive so pointer remains valid
+// }
+// #[derive(Debug)]
+// impl Model {
+//     pub fn load(path: &str, params: LlamaModelParams) -> Result<Self, String> {
+//         let c_path = CString::new(path).map_err(|_| "Invalid path string")?;
+//         // Call FFI function inside unsafe block
+//         let model_ptr = unsafe { llama_load_model_from_file(c_path.as_ptr(), params) };
+//         let ptr = NonNull::new(model_ptr).ok_or_else(|| "Failed to load model: null pointer".to_string())?;
+//         Ok(Model { ptr, _path_cstring: c_path })
+//     }
+//
+//     pub fn get_vocab(&self) -> Result<NonNull<LlamaVocab>, String> {
+//         let vocab_ptr = unsafe { llama_model_get_vocab(self.ptr.as_ptr()) };
+//         NonNull::new(vocab_ptr).ok_or_else(|| "Failed to get vocab: null pointer".to_string())
+//     }
+//
+//     pub fn raw_ptr(&self) -> *mut LlamaModel {
+//         self.ptr.as_ptr()
+//     }
+// }
 
-pub struct Context {
-    pub ptr: *mut LlamaContext,
-}
+// impl Drop for Model {
+//     fn drop(&mut self) {
+//         unsafe {
+//             if !self.ptr.is_null() {
+//                 llama_free_model(self.ptr);
+//             }
+//         }
+//     }
+// }
+// #[derive(Debug)]
+// pub struct Context {
+//     ptr: NonNull<LlamaContext>,
+// }
 
-impl Context {
-    pub fn new(model: &Model, params: LlamaContextParams) -> Result<Self, String> {
-        let ctx_ptr = unsafe { llama_new_context_with_model(model.ptr, params) };
-        if ctx_ptr.is_null() {
-            Err("Failed to create context".into())
-        } else {
-            Ok(Self { ptr: ctx_ptr })
-        }
-    }
-}
+// impl Context {
+//     pub fn new(model: &Model, params: LlamaContextParams) -> Result<Self, String> {
+//         let ctx_ptr = unsafe { llama_new_context_with_model(model.raw_ptr(), params) };
+//         let ptr = NonNull::new(ctx_ptr).ok_or_else(|| "Failed to create context: null pointer".to_string())?;
+//         Ok(Context { ptr })
+//     }
+//
+//     pub fn raw_ptr(&self) -> *mut LlamaContext {
+//         self.ptr.as_ptr()
+//     }
+// }
 
-impl Drop for Context {
-    fn drop(&mut self) {
-        unsafe { llama_free(self.ptr) };
-    }
-}
+// impl Drop for Context {
+//     fn drop(&mut self) {
+//         unsafe { llama_free(self.ptr.as_ptr()) }
+//     }
+// }
 
-use clap::{Parser};
 
-#[derive(Parser)]
+#[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Cli {
     #[arg(short, long, default_value = "models/llama-2-7b-chat.Q4_0.gguf")]
     pub model: String,
 
-    /// Temperature for sampling (e.g. 0.8)
     #[arg(long, default_value_t = 0.0)]
     pub temperature: f32,
 
-    /// Top-k sampling (e.g. 50)
     #[arg(long, default_value_t = 0)]
     pub top_k: i32,
 
-    /// Top-p sampling (nucleus) (e.g. 0.9)
     #[arg(long, default_value_t = 0.0)]
     pub top_p: f32,
 
@@ -76,84 +85,339 @@ pub struct Cli {
     pub command: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 pub enum Commands {
-    /// Interactive chat mode
     Chat,
-    // Chat {
-    /// If set, the model will answer briefly with no explanations
-    // #[arg(short, long)]
-    // brief: bool,
-    // },
-    /// Generate from a file
-    File {
-        filename: String,
-    },
-    /// Generate from a prompt passed directly
-    Prompt {
-        text: Vec<String>,
-    },
-    /// Query a CSV file
+    File { filename: String },
+    Prompt { text: Vec<String> },
     Csv {
         csv_path: String,
         output_path: String,
         query: Vec<String>,
     },
 }
-pub fn setup_sampler(cli: &Cli) -> *mut LlamaSampler {
-    // Initialize default sampler chain params
+
+pub fn setup_sampler(cli: &Cli) -> Result<*mut LlamaSampler, String> {
     let params = unsafe { llama_sampler_chain_default_params() };
     let chain = unsafe { llama_sampler_chain_init(params) };
+    if chain.is_null() {
+        return Err("Failed to initialize sampler chain".into());
+    }
 
-    // Add top_k sampler if top_k > 0
     if cli.top_k > 0 {
-        let top_k_sampler = unsafe {  llama_sampler_init_top_k(cli.top_k as i32) };
-        unsafe { llama_sampler_chain_add(chain, top_k_sampler)} ;
+        let top_k_sampler = unsafe { llama_sampler_init_top_k(cli.top_k) };
+        if top_k_sampler.is_null() {
+            return Err("Failed to initialize top_k sampler".into());
+        }
+        unsafe { llama_sampler_chain_add(chain, top_k_sampler) };
     }
 
-    // Add top_p sampler if top_p is between 0 and 1
     if cli.top_p > 0.0 && cli.top_p < 1.0 {
-        let top_p_sampler = unsafe {  llama_sampler_init_top_p(cli.top_p, 1) };
-            unsafe {  llama_sampler_chain_add(chain, top_p_sampler) };
+        let top_p_sampler = unsafe { llama_sampler_init_top_p(cli.top_p, 1) };
+        if top_p_sampler.is_null() {
+            return Err("Failed to initialize top_p sampler".into());
+        }
+        unsafe { llama_sampler_chain_add(chain, top_p_sampler) };
     }
 
-    // Add temperature sampler if temperature > 0
     if cli.temperature > 0.0 {
-        let temp_sampler = unsafe {  llama_sampler_init_temp(cli.temperature) };
-            unsafe {  llama_sampler_chain_add(chain, temp_sampler) };
+        let temp_sampler = unsafe { llama_sampler_init_temp(cli.temperature) };
+        if temp_sampler.is_null() {
+            return Err("Failed to initialize temperature sampler".into());
+        }
+        unsafe { llama_sampler_chain_add(chain, temp_sampler) };
     }
 
     use rand::Rng;
-
     let seed: u32 = rand::thread_rng().gen();
-    let dist_sampler = unsafe {  llama_sampler_init_dist(seed) };
+    let dist_sampler = unsafe { llama_sampler_init_dist(seed) };
+    if dist_sampler.is_null() {
+        return Err("Failed to initialize dist sampler".into());
+    }
+    unsafe { llama_sampler_chain_add(chain, dist_sampler) };
 
-    // Always add a final sampler to pick actual tokens (greedy here)
-    let greedy_sampler = unsafe {  llama_sampler_init_greedy()};
-    unsafe {  llama_sampler_chain_add(chain, greedy_sampler) };
+    let greedy_sampler = unsafe { llama_sampler_init_greedy() };
+    if greedy_sampler.is_null() {
+        return Err("Failed to initialize greedy sampler".into());
+    }
+    unsafe { llama_sampler_chain_add(chain, greedy_sampler) };
 
-    chain
+    Ok(chain)
 }
-/// Initialize library/backend
-pub fn backend_init() {
-    unsafe { llama_backend_init() }
-}
-
-/// Return default model params (by-value). This is safe.
-pub fn model_default_params() -> LlamaModelParams {
-    // Safe to call, returns by value
-    unsafe { llama_model_default_params() }
-}
-
-/// Return default context params
-pub fn context_default_params() -> LlamaContextParams {
-    unsafe { llama_context_default_params() }
-}
-
 
 pub fn sampler_free(sampler: *mut LlamaSampler) {
     if !sampler.is_null() {
         unsafe { llama_sampler_free(sampler) }
+    }
+}
+
+pub fn model_default_params() -> LlamaModelParams {
+    unsafe { llama_model_default_params() }
+}
+
+pub fn context_default_params() -> LlamaContextParams {
+    unsafe { llama_context_default_params() }
+}
+
+pub fn generate_text(
+    ctx: *mut LlamaContext,
+    vocab: *const LlamaVocab,
+    sampler: *mut LlamaSampler,
+    prompt: &str,
+) -> Result<String, String> {
+    if ctx.is_null() || vocab.is_null() || sampler.is_null() {
+        return Err("Null pointer passed to generate_text".into());
+    }
+
+    unsafe {
+        let mem = llama_get_memory(ctx);
+        if mem.is_null() {
+            return Err("Null memory pointer".into());
+        }
+        llama_memory_clear(mem, true);
+    }
+
+    let full_prompt = with_instruction(prompt);
+    let prompt_c = CString::new(full_prompt.clone()).map_err(|_| "Failed to convert prompt")?;
+
+    let mut tokens = [0i32; 512];
+    let n_tokens = unsafe {
+        llama_tokenize(
+            vocab,
+            prompt_c.as_ptr(),
+            full_prompt.len() as i32,
+            tokens.as_mut_ptr(),
+            tokens.len() as i32,
+            true,
+            false,
+        )
+    };
+    if n_tokens <= 0 {
+        return Err("Tokenization failed".into());
+    }
+
+    println!("Token count: {}", n_tokens);
+
+    let pos: Vec<i32> = (0..n_tokens).collect();
+
+    let mut batch = LlamaBatch {
+        n_tokens,
+        token: tokens.as_mut_ptr(),
+        embd: ptr::null_mut(),
+        pos: pos.as_ptr() as *mut i32,
+        n_seq_id: ptr::null_mut(),
+        seq_id: ptr::null_mut(),
+        logits: ptr::null_mut(),
+    };
+
+    unsafe {
+        let ret = llama_decode(ctx, batch);
+        if ret != 0 {
+            return Err("Decode failed on prompt tokens".into());
+        }
+    }
+
+    let max_tokens = 250;
+    let mut cur_len = n_tokens as usize;
+    print!("→ ");
+    io::stdout().flush().unwrap();
+
+    let mut n_past = n_tokens;
+    let mut generated_tokens = Vec::new();
+    let mut output = String::new();
+    let mut newline_count = 0;
+
+    for _ in 0..max_tokens {
+        let next_token = generated_tokens.last().unwrap_or(&tokens[n_past as usize - 1]);
+
+        if *next_token == 13 {
+            newline_count += 1;
+            if newline_count >= 3 {
+                break;
+            }
+        } else {
+            newline_count = 0;
+        }
+
+        let mut token_slice = [*next_token];
+        let mut pos = [n_past];
+        let mut logits_required = [1i8];
+
+        let mut batch = LlamaBatch {
+            n_tokens: 1,
+            token: token_slice.as_mut_ptr(),
+            embd: ptr::null_mut(),
+            pos: pos.as_ptr() as *mut i32,
+            n_seq_id: ptr::null_mut(),
+            seq_id: ptr::null_mut(),
+            logits: logits_required.as_ptr() as *mut i8,
+        };
+
+        unsafe {
+            let ret = llama_decode(ctx, batch);
+            if ret != 0 {
+                return Err("Decode failed".into());
+            }
+
+            let logits_ptr = llama_get_logits(ctx);
+            if logits_ptr.is_null() {
+                return Err("Logits pointer is null".into());
+            }
+
+            let vocab_size = llama_vocab_n_tokens(vocab) as usize;
+
+            let mut token_data: Vec<LlamaTokenData> = (0..vocab_size)
+                .map(|i| LlamaTokenData {
+                    id: i as i32,
+                    logit: *logits_ptr.add(i),
+                    p: 0.0,
+                })
+                .collect();
+
+            let mut token_data_array = LlamaTokenDataArray {
+                data: token_data.as_mut_ptr(),
+                size: token_data.len(),
+                sorted: false,
+            };
+
+            llama_sampler_apply(sampler, &mut token_data_array);
+
+            let next_token = llama_sampler_sample(sampler, ctx, 0);
+            llama_sampler_accept(sampler, next_token);
+
+            if cur_len < tokens.len() {
+                tokens[cur_len] = next_token;
+                cur_len += 1;
+            } else {
+                println!("\n[Token buffer full]");
+                break;
+            }
+
+            let token_text_ptr = llama_vocab_get_text(vocab, next_token);
+            if token_text_ptr.is_null() {
+                return Err("Failed to get token text".into());
+            }
+
+            let mut token_text = CStr::from_ptr(token_text_ptr)
+                .to_string_lossy()
+                .into_owned();
+
+            token_text = token_text.replace("<0x0A>", "\n");
+            token_text = token_text.replace('▁', " ");
+
+            print!("{}", token_text);
+            io::stdout().flush().unwrap();
+            output.push_str(&token_text);
+
+            n_past += 1;
+            generated_tokens.push(next_token);
+        }
+    }
+
+    let output = output.trim();
+    let output = output.trim_end_matches(|c: char| c.is_whitespace() || c == '.' || c == ',' || c == '\n' || c == '\r');
+
+    println!();
+
+    Ok(output.to_string())
+}
+
+pub fn with_instruction(prompt: &str) -> String {
+    format!("You are a precise assistant. Answer the Question:\n\n{}", prompt)
+}
+
+fn read_csv_with_header(csv_path: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let content = std::fs::read_to_string(csv_path)?;
+    let first_line = content.lines().next().unwrap_or("");
+    let has_header = first_line.chars().any(|c| c.is_alphabetic());
+
+    if has_header {
+        Ok(content)
+    } else {
+        println!("No headers in the file");
+        Ok("No headers in the file".to_string())
+    }
+}
+
+pub fn run_csv_query(
+    ctx: *mut LlamaContext,
+    vocab: *const LlamaVocab,
+    sampler: *mut LlamaSampler,
+    csv_path: &str,
+    prompt_template: &str,
+    output_path: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let csv_text = read_csv_with_header(csv_path)?;
+    println!("CSV content:\n{}", csv_text);
+
+    let prompt_template = prompt_template.replace("\\n", "\n");
+    let prompt = prompt_template.replace("{csv}", &csv_text);
+    println!("Final prompt sent to model:\n{}", prompt);
+
+    let generated = generate_text(ctx, vocab, sampler, &prompt)
+        .map_err(|e| format!("Generation error: {}", e))?;
+
+    let mut file = File::create(output_path)?;
+    file.write_all(generated.as_bytes())?;
+
+    println!("Generated output saved to {}", output_path);
+
+    Ok(())
+}
+#[derive(Debug)]
+pub struct Sampler {
+    ptr: *mut LlamaSampler,
+}
+
+impl Sampler {
+    pub fn new(cli: &Cli) -> Result<Self, String> {
+        // Initialize sampler chain with default params
+        let chain = unsafe { llama_sampler_chain_init(unsafe { llama_sampler_chain_default_params() }) };
+
+        if chain.is_null() {
+            return Err("Failed to init sampler chain".into());
+        }
+
+        // Add top-k sampler if enabled
+        if cli.top_k > 0 {
+            let top_k_sampler = unsafe { llama_sampler_init_top_k(cli.top_k as i32) };
+            unsafe { llama_sampler_chain_add(chain, top_k_sampler) };
+        }
+
+        // Add top-p sampler if enabled and valid
+        if cli.top_p > 0.0 && cli.top_p < 1.0 {
+            let top_p_sampler = unsafe { llama_sampler_init_top_p(cli.top_p, 1) };
+            unsafe { llama_sampler_chain_add(chain, top_p_sampler) };
+        }
+
+        // Add temperature sampler if enabled
+        if cli.temperature > 0.0 {
+            let temp_sampler = unsafe { llama_sampler_init_temp(cli.temperature) };
+            unsafe { llama_sampler_chain_add(chain, temp_sampler) };
+        }
+
+        // Add distribution sampler seeded randomly
+        use rand::Rng;
+        let seed: u32 = rand::thread_rng().gen();
+        let dist_sampler = unsafe { llama_sampler_init_dist(seed) };
+        unsafe { llama_sampler_chain_add(chain, dist_sampler) };
+
+        // Add greedy sampler last
+        let greedy_sampler = unsafe { llama_sampler_init_greedy() };
+        unsafe { llama_sampler_chain_add(chain, greedy_sampler) };
+
+        Ok(Sampler { ptr: chain })
+    }
+    pub fn ptr(&self) -> *mut LlamaSampler {
+        self.ptr
+    }
+}
+
+impl Drop for Sampler {
+    fn drop(&mut self) {
+        if !self.ptr.is_null() {
+            unsafe { llama_sampler_free(self.ptr) };
+        }
     }
 }
 
@@ -178,18 +442,50 @@ pub fn load_model_from_file(path: &CStr, params: LlamaModelParams) -> Result<*mu
     }
 }
 
-pub fn new_context_with_model(model: *mut LlamaModel, params: LlamaContextParams) -> Result<*mut LlamaContext, String> {
-    let ctx = unsafe { llama_new_context_with_model(model, params) };
-    if ctx.is_null() {
-        Err("Failed to create context: null pointer".to_string())
-    } else {
-        Ok(ctx)
-    }
+pub fn backend_init() {
+    unsafe { llama_backend_init() }
 }
-// Similarly add safe wrappers for other pointer-returning or unsafe functions.
 
-// For example:
+pub fn print_model_params(params: &LlamaModelParams) {
+    println!("LlamaModelParams {{");
+    println!("  n_gpu_layers: {}", params.n_gpu_layers);
+    println!("  main_gpu: {}", params.main_gpu);
+    println!("  tensor_split: {:?}", params.tensor_split);
+    println!("  tensor_split_size: {}", params.tensor_split_size);
+    println!("  vocab_only: {}", params.vocab_only);
+    println!("  use_mmap: {}", params.use_mmap);
+    println!("  use_mlock: {}", params.use_mlock);
+    println!("  check_tensors: {}", params.check_tensors);
+    println!("  progress_callback: {:?}", params.progress_callback);
+    println!("  progress_callback_user_data: {:?}", params.progress_callback_user_data);
+    println!("}}");
+}
 
+pub fn print_context_params(params: &LlamaContextParams) {
+    println!("LlamaContextParams {{");
+    println!("  seed: {}", params.seed);
+    println!("  n_ctx: {}", params.n_ctx);
+    println!("  n_batch: {}", params.n_batch);
+    println!("  n_threads: {}", params.n_threads);
+    println!("  n_threads_batch: {}", params.n_threads_batch);
+    println!("  rope_freq_base: {}", params.rope_freq_base);
+    println!("  rope_freq_scale: {}", params.rope_freq_scale);
+    println!("  yarn_ext_factor: {}", params.yarn_ext_factor);
+    println!("  yarn_attn_factor: {}", params.yarn_attn_factor);
+    println!("  yarn_beta_fast: {}", params.yarn_beta_fast);
+    println!("  yarn_beta_slow: {}", params.yarn_beta_slow);
+    println!("  yarn_orig_ctx: {}", params.yarn_orig_ctx);
+    println!("  mul_mat_q: {}", params.mul_mat_q);
+    println!("  f16_kv: {}", params.f16_kv);
+    println!("  logits_all: {}", params.logits_all);
+    println!("  embedding: {}", params.embedding);
+    println!("  offload_kqv: {}", params.offload_kqv);
+    println!("  offload_kqv_linear: {}", params.offload_kqv_linear);
+    println!("  flash_attn: {}", params.flash_attn);
+    println!("  pooling_type: {}", params.pooling_type);
+    println!("  rms_norm_eps: {}", params.rms_norm_eps);
+    println!("}}");
+}
 pub fn model_get_vocab(model: *const LlamaModel) -> Result<*const LlamaVocab, String> {
     let vocab = unsafe { llama_model_get_vocab(model) };
     if vocab.is_null() {
@@ -198,272 +494,86 @@ pub fn model_get_vocab(model: *const LlamaModel) -> Result<*const LlamaVocab, St
         Ok(vocab)
     }
 }
-pub fn vocab_get_text(vocab: *const LlamaVocab, token: i32) -> Result<&'static CStr, String> {
-    let ptr = unsafe { llama_vocab_get_text(vocab, token) };
-    if ptr.is_null() {
-        Err("Failed to get token text: null pointer".to_string())
+
+pub fn new_context_with_model(model: *mut LlamaModel, params: LlamaContextParams) -> Result<*mut LlamaContext, String> {
+    let ctx = unsafe { llama_new_context_with_model(model, params) };
+    if ctx.is_null() {
+        Err("Failed to create context: null pointer".to_string())
     } else {
-        // SAFETY: we trust the C string returned is valid and null-terminated
-        let cstr = unsafe { CStr::from_ptr(ptr) };
-        Ok(cstr)
+        Ok(ctx)
     }
 }
 
-pub fn run_csv_query(
-    ctx: *mut LlamaContext,
-    vocab: *const LlamaVocab,
-    sampler: *mut LlamaSampler,
-    csv_path: &str,
-    // query: &str,
-    prompt_template: &str,
-    output_path: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    // let csv_text = read_csv_file(csv_path)?;
-    let csv_text = read_csv_with_header(csv_path)?;
-    println!("CSV content:\n{}", csv_text);
 
-
-    let prompt_template = prompt_template.replace("\\n", "\n");
-    // Replace placeholder {csv} in prompt template with csv_text
-    let prompt = prompt_template.replace("{csv}", &csv_text);
-    println!("Final prompt sent to model:\n{}", prompt);
-    let generated = generate_text(ctx, vocab, sampler, &prompt);
-
-    // Save generated output to file
-    let mut file = File::create(output_path)?;
-    file.write_all(generated.as_bytes())?;
-
-    println!("Generated output saved to {}", output_path);
-
-    Ok(())
+// Safe Rust wrapper around LlamaModel raw pointer
+pub struct Model {
+    ptr: NonNull<LlamaModel>,
+    _path_cstring: CString, // keep CString alive for path pointer validity
 }
 
-fn safe_get_logits<'a>(
-    ctx: *mut LlamaContext,
-    vocab: *const LlamaVocab,
-) -> Result<&'a [f32], String> {
-    if ctx.is_null() {
-        return Err("Context pointer is null".into());
-    }
-    if vocab.is_null() {
-        return Err("Vocab pointer is null".into());
+impl Model {
+    pub fn load(path: &str, params: LlamaModelParams) -> Result<Self, String> {
+        let c_path = CString::new(path).map_err(|_| "Invalid path string")?;
+        let raw_ptr = unsafe { llama_load_model_from_file(c_path.as_ptr(), params) };
+
+        let ptr = NonNull::new(raw_ptr).ok_or_else(|| "Failed to load model: null pointer".to_string())?;
+
+        Ok(Model {
+            ptr,
+            _path_cstring: c_path,
+        })
     }
 
-    let ptr = unsafe { llama_get_logits(ctx) };
-    if ptr.is_null() {
-        return Err("Logits pointer is null".into());
+    pub fn get_vocab(&self) -> Result<Vocab, String> {
+        let vocab_ptr = unsafe { llama_model_get_vocab(self.ptr.as_ptr()) };
+        let ptr = NonNull::new(vocab_ptr as *mut LlamaVocab)
+            .ok_or_else(|| "Failed to get vocab: null pointer".to_string())?;
+        Ok(Vocab { ptr })
     }
 
-    let vocab_size = unsafe { llama_vocab_n_tokens(vocab) };
-    Ok(unsafe { std::slice::from_raw_parts(ptr, vocab_size as usize) })
+    pub fn ptr(&self) -> *mut LlamaModel {
+        self.ptr.as_ptr()
+    }
 }
-pub fn get_logits(ctx: *mut LlamaContext, vocab_size: usize) -> Result<Vec<f32>, String> {
-    if ctx.is_null() {
-        return Err("Context is null".into());
-    }
 
-    let ptr = unsafe { llama_get_logits(ctx) };
-    if ptr.is_null() {
-        return Err("Failed to get logits".into());
-    }
-
-    // Safety: llama_get_logits returns a pointer to logits array of length vocab_size.
-    let slice = unsafe { slice::from_raw_parts(ptr, vocab_size) };
-
-    // Copy into a Vec to avoid lifetime/dangling pointer issues
-    Ok(slice.to_vec())
-}
-pub fn generate_text(
-    ctx: *mut LlamaContext,
-    vocab: *const LlamaVocab,
-    sampler: *mut LlamaSampler,
-    prompt: &str,
-) -> String {
-
-    unsafe {
-        // Reset the model's memory to clear past context
-        let mem = llama_get_memory(ctx);
-        assert!(!mem.is_null(), "Memory pointer is null");
-        llama_memory_clear(mem, true);
-    }
-
-    let full_prompt = with_instruction(&prompt);
-    // Tokenize the prompt string into model tokens
-    // let prompt_c = CString::new(prompt).unwrap();
-    let prompt_c = CString::new(full_prompt.clone()).unwrap();
-    let mut tokens = [0i32; 512];
-
-    let n_tokens = unsafe {
-        llama_tokenize(
-            vocab,
-            prompt_c.as_ptr(),
-            full_prompt.len() as i32,
-            // prompt.len() as i32,
-            // prompt.len() as i32,
-            tokens.as_mut_ptr(),
-            tokens.len() as i32,
-            true,  // add_special tokens
-            false, // parse_special tokens
-        )
-    };
-    assert!(n_tokens > 0, "Tokenization failed");
-    // println!("Prompt sent to model:\n{}", full_prompt);
-    println!("Token count: {}", n_tokens);
-    // Feed the entire prompt tokens at once with consecutive positions
-    let pos: Vec<i32> = (0..n_tokens).collect();
-    let mut batch = LlamaBatch {
-        n_tokens,
-        token: tokens.as_mut_ptr(),
-        embd: ptr::null_mut(),
-        pos: pos.as_ptr() as *mut i32,
-        n_seq_id: ptr::null_mut(),
-        seq_id: ptr::null_mut(),
-        logits: ptr::null_mut(),
-    };
-    unsafe {
-        let ret = llama_decode(ctx, batch);
-        assert_eq!(ret, 0, "Decode failed on prompt tokens");
-    }
-
-
-    // Prepare to generate tokens for completion
-    let max_tokens = 250;
-
-    let mut cur_len = n_tokens as usize;
-    print!("→ ");
-    io::stdout().flush().unwrap();
-
-    let mut n_past = n_tokens;
-    let mut generated_tokens = Vec::new();
-    let mut output = String::new();
-    let mut newline_count = 0;
-    let stop_tokens = vec![2 /* EOS */, 26077 /* " unwanted token IDs here */];
-
-
-    for _ in 0..max_tokens {
-        let next_token = generated_tokens.last().unwrap_or(&tokens[n_past as usize - 1]);
-        // implement breaking after 3 new lines
-        // if stop_tokens.contains(&next_token) {
-        //     break;
-        // }
-        if next_token == &13 {  // newline
-            newline_count += 1;
-            if newline_count >= 3 {
-                break; // stop after 3 consecutive newlines
-            }
-        } else {
-            newline_count = 0;  // reset count on other tokens
-        }
-
-        let mut token_slice = [*next_token];
-        let mut pos = [n_past];
-
-        let mut logits_required = [1i8];
-
-        let mut batch = LlamaBatch {
-            n_tokens: 1,
-            token: token_slice.as_mut_ptr(),
-            embd: ptr::null_mut(),
-            pos: pos.as_ptr() as *mut i32,
-            n_seq_id: ptr::null_mut(),
-            seq_id: ptr::null_mut(),
-            logits: logits_required.as_ptr() as *mut i8,
-        };
+impl Drop for Model {
+    fn drop(&mut self) {
         unsafe {
-            let ret = unsafe {  llama_decode(ctx, batch) };
-            assert_eq!(ret, 0, "Decode failed");
-
-            let logits_ptr = unsafe {  llama_get_logits(ctx) };
-            let logits_ptr = unsafe {  llama_get_logits(ctx) };
-            assert!(!logits_ptr.is_null(), "Logits pointer is null");
-
-            let vocab_size = unsafe {  llama_vocab_n_tokens(vocab) };
-
-            // Wrap logits into token data for sampler
-            let mut token_data: Vec<LlamaTokenData> = (0..vocab_size).map(|i| {
-                LlamaTokenData {
-                    id: i as i32,
-                    logit: *logits_ptr.add(i as usize),
-                    p: 0.0,
-                }
-            }).collect();
-
-            let mut token_data_array = unsafe {
-                LlamaTokenDataArray {
-                    data: token_data.as_mut_ptr(),
-                    size: token_data.len(),
-                    sorted: false,
-                }
-            };
-
-            // Apply sampling to modify logits (e.g., greedy, temperature, top-p)
-            unsafe {  llama_sampler_apply(sampler, &mut token_data_array) };
-
-            // Sample next token index from sampler
-            let next_token = llama_sampler_sample(sampler, ctx, 0);
-
-            llama_sampler_accept(sampler, next_token);
-
-            if cur_len < tokens.len() {
-                tokens[cur_len] = next_token;
-                cur_len += 1;
-            } else {
-                println!("\n[Token buffer full]");
-                break;
-            }
-
-            let token_text_ptr = unsafe {  llama_vocab_get_text(vocab, next_token) };
-
-            let mut token_text = std::ffi::CStr::from_ptr(token_text_ptr)
-                .to_string_lossy()
-                .into_owned();
-
-            // Replace visible hex newlines with real ones and clean up whitespace token
-            token_text = token_text.replace("<0x0A>", "\n");
-            token_text = token_text.replace('▁', " ");
-            print!("{}", token_text);
-            io::stdout().flush().unwrap();
-            output.push_str(&token_text);
-
-            // Stop generation if EOS or BOS tokens appear -- doesn't work now as often have </s> token
-            // if next_token == 2 || next_token == 0 {
-            //     break;
-            // }
-
-            n_past += 1;
-            generated_tokens.push(next_token);
+            llama_free_model(self.ptr.as_ptr());
         }
     }
-    let output = output.trim();
-
-    let output = output.trim_end_matches(|c: char| {
-        c.is_whitespace() || c == '.' || c == ',' || c == '\n' || c == '\r'
-    });
-    println!();
-
-    output.to_string()
 }
 
-pub fn with_instruction(prompt: &str) -> String {
-    format!(
-        "You are a precise assistant. Answer the Question:\n\n{}",
-        prompt
-    )
+pub struct Context {
+    ptr: NonNull<LlamaContext>,
 }
 
-fn read_csv_with_header(csv_path: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let content = std::fs::read_to_string(csv_path)?;
+impl Context {
+    pub fn new(model: &Model, params: LlamaContextParams) -> Result<Self, String> {
+        let ctx_ptr = unsafe { llama_new_context_with_model(model.ptr(), params) };
+        let ptr = NonNull::new(ctx_ptr).ok_or_else(|| "Failed to create context: null pointer".to_string())?;
+        Ok(Context { ptr })
+    }
 
-    // Check if the first line looks like a header (contains alphabetic characters)
-    let first_line = content.lines().next().unwrap_or("");
-    let has_header = first_line.chars().any(|c| c.is_alphabetic());
+    pub fn ptr(&self) -> *mut LlamaContext {
+        self.ptr.as_ptr()
+    }
+}
 
-    let full_csv = if has_header {
-        content
-    } else {
-        println!("No headers in the file");
-        "No headers in the file".to_string()
-    };
+impl Drop for Context {
+    fn drop(&mut self) {
+        unsafe {
+            llama_free(self.ptr.as_ptr());
+        }
+    }
+}
 
-    Ok(full_csv)
+pub struct Vocab {
+    ptr: NonNull<LlamaVocab>,
+}
+
+impl Vocab {
+    pub fn ptr(&self) -> *mut LlamaVocab {
+        self.ptr.as_ptr()
+    }
 }
