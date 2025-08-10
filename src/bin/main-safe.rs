@@ -5,17 +5,23 @@ use std::{ fs, io};
 use std::ffi::{CString, CStr};
 
 use std::io::Write;
-// use rusty_llama::llama::*;
-// { generate_text, setup_sampler, Cli, backend_init, llama_sampler_free,llama_free_model, llama_free,
-//                           llama_model_get_vocab, llama_model_default_params, load_model_from_file,
-//                           llama_context_default_params, llama_new_context_with_model };
 
-// use rusty_llama::ffi::{ llama_model_get_vocab, llama_model_default_params, llama_load_model_from_file,
-//                         llama_context_default_params, llama_new_context_with_model };
-// use crate::ffi::{llama_model_params, llama_context_params};
-// use crate::llama::{Model, Context};
 use rusty_llama::ffi::*;
 use rusty_llama::llama::*;
+
+
+// # REPL chat mode
+// cargo run -- chat
+//
+// # Generate from file
+// cargo run -- file prompts.txt
+//
+// # Generate from prompt (multi-word)
+// cargo run -- prompt Explain Rust ownership rules
+//
+// # CSV query (multi-word query)
+// cargo run -- csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate and output only the numeric average sales. Do not provide explanations or additional text. Answer:"
+
 fn main() {
     backend_init();
 
@@ -30,6 +36,7 @@ fn main() {
     let model_params = model_default_params();
     // let model = load_model_from_file(model_path_cstr.as_ptr(), model_params).unwrap();;
     let model = load_model_from_file(model_path_cstr.as_c_str(), model_params).unwrap();;
+
     assert!(!model.is_null(), "Failed to load model");
 
     let ctx_params = context_default_params();
@@ -87,9 +94,9 @@ fn main() {
         }
     }
 
-    sampler_free(sampler);
-    free_context(ctx.unwrap());
-    free_model(model);
+    // sampler_free(sampler);
+    // free_context(ctx.unwrap());
+    // free_model(model);
 }
 
 

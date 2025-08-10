@@ -7,7 +7,7 @@ use std::os::raw::c_char;
 use crate::ffi::*;
 use clap::Subcommand;
 use std::ffi::CStr;
-
+use std::slice;
 pub struct Model {
     pub ptr: *mut LlamaModel,
 }
@@ -134,9 +134,22 @@ pub fn setup_sampler(cli: &Cli) -> *mut LlamaSampler {
 
     chain
 }
+/// Initialize library/backend
 pub fn backend_init() {
     unsafe { llama_backend_init() }
 }
+
+/// Return default model params (by-value). This is safe.
+pub fn model_default_params() -> LlamaModelParams {
+    // Safe to call, returns by value
+    unsafe { llama_model_default_params() }
+}
+
+/// Return default context params
+pub fn context_default_params() -> LlamaContextParams {
+    unsafe { llama_context_default_params() }
+}
+
 
 pub fn sampler_free(sampler: *mut LlamaSampler) {
     if !sampler.is_null() {
@@ -154,15 +167,6 @@ pub fn free_model(model: *mut LlamaModel) {
     if !model.is_null() {
         unsafe { llama_free_model(model) }
     }
-}
-
-pub fn model_default_params() -> LlamaModelParams {
-    // Safe to call, returns by value
-    unsafe { llama_model_default_params() }
-}
-
-pub fn context_default_params() -> LlamaContextParams {
-    unsafe { llama_context_default_params() }
 }
 
 pub fn load_model_from_file(path: &CStr, params: LlamaModelParams) -> Result<*mut LlamaModel, String> {
@@ -204,8 +208,6 @@ pub fn vocab_get_text(vocab: *const LlamaVocab, token: i32) -> Result<&'static C
         Ok(cstr)
     }
 }
-// llama_model_get_vocab, llama_model_default_params, llama_load_model_from_file,
-// llama_context_default_params, llama_new_context_with_model
 
 pub fn run_csv_query(
     ctx: *mut LlamaContext,
@@ -234,6 +236,42 @@ pub fn run_csv_query(
     println!("Generated output saved to {}", output_path);
 
     Ok(())
+}
+
+fn safe_get_logits<'a>(
+    ctx: *mut LlamaContext,
+    vocab: *const LlamaVocab,
+) -> Result<&'a [f32], String> {
+    if ctx.is_null() {
+        return Err("Context pointer is null".into());
+    }
+    if vocab.is_null() {
+        return Err("Vocab pointer is null".into());
+    }
+
+    let ptr = unsafe { llama_get_logits(ctx) };
+    if ptr.is_null() {
+        return Err("Logits pointer is null".into());
+    }
+
+    let vocab_size = unsafe { llama_vocab_n_tokens(vocab) };
+    Ok(unsafe { std::slice::from_raw_parts(ptr, vocab_size as usize) })
+}
+pub fn get_logits(ctx: *mut LlamaContext, vocab_size: usize) -> Result<Vec<f32>, String> {
+    if ctx.is_null() {
+        return Err("Context is null".into());
+    }
+
+    let ptr = unsafe { llama_get_logits(ctx) };
+    if ptr.is_null() {
+        return Err("Failed to get logits".into());
+    }
+
+    // Safety: llama_get_logits returns a pointer to logits array of length vocab_size.
+    let slice = unsafe { slice::from_raw_parts(ptr, vocab_size) };
+
+    // Copy into a Vec to avoid lifetime/dangling pointer issues
+    Ok(slice.to_vec())
 }
 pub fn generate_text(
     ctx: *mut LlamaContext,
@@ -335,6 +373,7 @@ pub fn generate_text(
             let ret = unsafe {  llama_decode(ctx, batch) };
             assert_eq!(ret, 0, "Decode failed");
 
+            let logits_ptr = unsafe {  llama_get_logits(ctx) };
             let logits_ptr = unsafe {  llama_get_logits(ctx) };
             assert!(!logits_ptr.is_null(), "Logits pointer is null");
 
