@@ -181,4 +181,11 @@ extern "C" {
     pub fn llama_sampler_init_top_p(p: f32, min_keep: usize) -> *mut LlamaSampler;
 
     pub fn llama_sampler_init_dist(seed: u32) -> *mut LlamaSampler;
+
+    // silence logs
+    pub fn llama_log_set(
+        callback: Option<extern "C" fn(i32, *const std::os::raw::c_char, *mut c_void)>,
+        user_data: *mut c_void,
+    );
+    // pub fn silent_log_callback(_level: i32, _text: *const std::os::raw::c_char, _user_data: *mut c_void);
 }

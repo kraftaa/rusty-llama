@@ -305,7 +305,7 @@ pub fn generate_text(
             token_text = token_text.replace("<0x0A>", "\n");
             token_text = token_text.replace('▁', " ");
 
-            print!("{}", token_text);
+            // print!("{}", token_text);
             io::stdout().flush().unwrap();
             output.push_str(&token_text);
 
@@ -348,11 +348,11 @@ pub fn run_csv_query(
     output_path: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let csv_text = read_csv_with_header(csv_path)?;
-    println!("CSV content:\n{}", csv_text);
+    // println!("CSV content:\n{}", csv_text);
 
     let prompt_template = prompt_template.replace("\\n", "\n");
     let prompt = prompt_template.replace("{csv}", &csv_text);
-    println!("Final prompt sent to model:\n{}", prompt);
+    // println!("Final prompt sent to model:\n{}", prompt);
 
     let generated = generate_text(ctx, vocab, sampler, &prompt)
         .map_err(|e| format!("Generation error: {}", e))?;
@@ -441,9 +441,25 @@ pub fn load_model_from_file(path: &CStr, params: LlamaModelParams) -> Result<*mu
         Ok(ptr)
     }
 }
+use std::ffi::{c_void};
+use std::os::raw::c_char;
+extern "C" fn silent_log_callback(
+    _level: i32,
+    _text: *const c_char,
+    _user_data: *mut c_void,
+) {
+    // do nothing
+}
 
+pub fn remove_logs() {
+    unsafe {
+        llama_log_set(Some(silent_log_callback), std::ptr::null_mut());
+    }
+}
 pub fn backend_init() {
-    unsafe { llama_backend_init() }
+    unsafe {
+        llama_backend_init()
+    }
 }
 
 pub fn print_model_params(params: &LlamaModelParams) {

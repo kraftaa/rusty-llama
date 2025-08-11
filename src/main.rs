@@ -12,14 +12,13 @@
 
 use clap::{Parser};
 use std::{ fs, io};
-use std::ffi::{CString, CStr};
 
 use std::io::Write;
 
 use rusty_llama::llama::*;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     backend_init();
-
+    remove_logs();
     let cli = Cli::parse();
     let model_params = model_default_params();
     let model = Model::load(&cli.model, model_params)?;
@@ -64,7 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 //     // let vocab = model.get_vocab()?;
 //     println!("vocab: {:?}", vocab);
 //     let sampler = setup_sampler(&cli).expect("Failed to initialize sampler");
-    println!("sampler: {:?}", sampler);
+//     println!("sampler: {:?}", sampler);
 //     // let sampler = Sampler::new(&cli).expect("Failed to create sampler");
     assert!(!sampler.ptr().is_null(), "Failed to init sampler");
 
