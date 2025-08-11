@@ -2,69 +2,11 @@ use std::ffi::{CString, CStr};
 use std::{io, ptr};
 use std::fs::File;
 use std::io::Write;
-use std::slice;
 
 use crate::ffi::*;
 use clap::{Parser, Subcommand};
 
 use std::ptr::NonNull;
-
-// pub struct Model {
-//     ptr: NonNull<LlamaModel>,
-//     _path_cstring: CString, // keep CString alive so pointer remains valid
-// }
-// #[derive(Debug)]
-// impl Model {
-//     pub fn load(path: &str, params: LlamaModelParams) -> Result<Self, String> {
-//         let c_path = CString::new(path).map_err(|_| "Invalid path string")?;
-//         // Call FFI function inside unsafe block
-//         let model_ptr = unsafe { llama_load_model_from_file(c_path.as_ptr(), params) };
-//         let ptr = NonNull::new(model_ptr).ok_or_else(|| "Failed to load model: null pointer".to_string())?;
-//         Ok(Model { ptr, _path_cstring: c_path })
-//     }
-//
-//     pub fn get_vocab(&self) -> Result<NonNull<LlamaVocab>, String> {
-//         let vocab_ptr = unsafe { llama_model_get_vocab(self.ptr.as_ptr()) };
-//         NonNull::new(vocab_ptr).ok_or_else(|| "Failed to get vocab: null pointer".to_string())
-//     }
-//
-//     pub fn raw_ptr(&self) -> *mut LlamaModel {
-//         self.ptr.as_ptr()
-//     }
-// }
-
-// impl Drop for Model {
-//     fn drop(&mut self) {
-//         unsafe {
-//             if !self.ptr.is_null() {
-//                 llama_free_model(self.ptr);
-//             }
-//         }
-//     }
-// }
-// #[derive(Debug)]
-// pub struct Context {
-//     ptr: NonNull<LlamaContext>,
-// }
-
-// impl Context {
-//     pub fn new(model: &Model, params: LlamaContextParams) -> Result<Self, String> {
-//         let ctx_ptr = unsafe { llama_new_context_with_model(model.raw_ptr(), params) };
-//         let ptr = NonNull::new(ctx_ptr).ok_or_else(|| "Failed to create context: null pointer".to_string())?;
-//         Ok(Context { ptr })
-//     }
-//
-//     pub fn raw_ptr(&self) -> *mut LlamaContext {
-//         self.ptr.as_ptr()
-//     }
-// }
-
-// impl Drop for Context {
-//     fn drop(&mut self) {
-//         unsafe { llama_free(self.ptr.as_ptr()) }
-//     }
-// }
-
 
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -129,7 +71,7 @@ pub fn setup_sampler(cli: &Cli) -> Result<*mut LlamaSampler, String> {
     }
 
     use rand::Rng;
-    let seed: u32 = rand::thread_rng().gen();
+    let seed: u32 = rand::rng().random();
     let dist_sampler = unsafe { llama_sampler_init_dist(seed) };
     if dist_sampler.is_null() {
         return Err("Failed to initialize dist sampler".into());
@@ -196,11 +138,11 @@ pub fn generate_text(
         return Err("Tokenization failed".into());
     }
 
-    println!("Token count: {}", n_tokens);
+    // println!("Token count: {}", n_tokens);
 
     let pos: Vec<i32> = (0..n_tokens).collect();
 
-    let mut batch = LlamaBatch {
+    let batch = LlamaBatch {
         n_tokens,
         token: tokens.as_mut_ptr(),
         embd: ptr::null_mut(),
@@ -240,10 +182,10 @@ pub fn generate_text(
         }
 
         let mut token_slice = [*next_token];
-        let mut pos = [n_past];
-        let mut logits_required = [1i8];
+        let pos = [n_past];
+        let logits_required = [1i8];
 
-        let mut batch = LlamaBatch {
+        let batch = LlamaBatch {
             n_tokens: 1,
             token: token_slice.as_mut_ptr(),
             embd: ptr::null_mut(),
@@ -372,7 +314,7 @@ pub struct Sampler {
 impl Sampler {
     pub fn new(cli: &Cli) -> Result<Self, String> {
         // Initialize sampler chain with default params
-        let chain = unsafe { llama_sampler_chain_init(unsafe { llama_sampler_chain_default_params() }) };
+        let chain = unsafe { llama_sampler_chain_init(  llama_sampler_chain_default_params() ) };
 
         if chain.is_null() {
             return Err("Failed to init sampler chain".into());
@@ -398,7 +340,7 @@ impl Sampler {
 
         // Add distribution sampler seeded randomly
         use rand::Rng;
-        let seed: u32 = rand::thread_rng().gen();
+        let seed: u32 = rand::rng().random();
         let dist_sampler = unsafe { llama_sampler_init_dist(seed) };
         unsafe { llama_sampler_chain_add(chain, dist_sampler) };
 
@@ -443,6 +385,7 @@ pub fn load_model_from_file(path: &CStr, params: LlamaModelParams) -> Result<*mu
 }
 use std::ffi::{c_void};
 use std::os::raw::c_char;
+
 extern "C" fn silent_log_callback(
     _level: i32,
     _text: *const c_char,

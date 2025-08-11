@@ -1,4 +1,3 @@
-use std::ffi::{CString, CStr};
 use std::os::raw::{c_int, c_float, c_char, c_void};
 
 type LlamaToken = i32; // check actual type in the headers
@@ -8,9 +7,14 @@ type LlamaSeqId = i32; // adjust if different
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct LlamaModel;
+// pub struct LlamaModel;
+pub struct LlamaModel {
+    _private: [u8; 0],
+}
 #[repr(C)]
-pub struct LlamaContext;
+pub struct LlamaContext {
+    _private: [u8; 0],
+}
 
 #[repr(C)]
 pub struct LlamaBatch {
@@ -62,7 +66,11 @@ pub struct LlamaContextParams {
 }
 
 #[repr(C)]
-pub struct LlamaVocab;  // Opaque pointer type
+// pub struct LlamaVocab;  // Opaque pointer type
+pub struct LlamaVocab {
+    _private: [u8; 0],
+}
+
 
 #[repr(C)]
 pub struct LlamaTokenDataArray {
@@ -73,18 +81,27 @@ pub struct LlamaTokenDataArray {
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct LlamaSampler;  // Opaque pointer type
+pub struct LlamaSampler {
+    _private: [u8; 0],
+}
+
 
 #[repr(C)]
 pub struct LlamaSamplerI {
+    _private: [u8; 0],
+
     // Function pointers defining behavior (e.g., sample_token, etc.)
     // Leave empty or mock if using the built-in samplers.
 }
 #[repr(C)]
-pub struct SamplerParams;  // Opaque pointer type
+// pub struct SamplerParams;  // Opaque pointer type
+pub struct SamplerParams {
+    _private: [u8; 0],
+}  // Opaque pointer type
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct LlamaSamplerChainParams {
+    _private: [u8; 0],
     // _private: [u8; SIZE], // ???
 }
 
