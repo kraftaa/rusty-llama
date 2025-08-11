@@ -56,7 +56,7 @@ export DYLD_LIBRARY_PATH=$(pwd)/bundle
 #### REPL Chat Mode
 
 ```shell
-./rusty_llama chat
+./rusty_llama --model model_path chat
 # or
 cargo run -- chat
 ```
@@ -68,17 +68,17 @@ Tip: To get precise answers, format your question clearly, e.g.:
 
 #### Generate from File
 ```shell
-./rusty_llama file prompts.txt
+./rusty_llama --model model_path file prompts.txt
 ```
 
 #### Generate from Prompt
 ```shell
-./rusty_llama prompt "Explain Rust ownership rules"
+./rusty_llama --model model_path prompt "Explain Rust ownership rules"
 ```
 
 #### CSV Query Mode
 ```shell
-./rusty_llama csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate and output only the numeric average sales. Do not provide explanations or additional text. Answer:"
+./rusty_llama --model model_path csv ./data/sales.csv ./output.txt "Given the following CSV data:\n{csv}\n\nCalculate and output only the numeric average sales. Do not provide explanations or additional text. Answer:"
 ```
 Reads CSV data from `./data/sales.csv`
 
@@ -98,7 +98,7 @@ Customize generation with these flags:
 #### Example:
 
 ```shell
-./rusty_llama chat --temperature 0.5 --top-k 40 --top-p 0.9
+./rusty_llama --model model_path  --temperature 0.5 --top-k 40 --top-p 0.9 chat
 ```
 
 #### Python and Ruby Wrappers
