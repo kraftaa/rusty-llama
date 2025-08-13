@@ -30,6 +30,14 @@ pub struct Cli {
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     Chat,
+    SummarizePrompt {
+        #[clap(short, long)]
+        text: Option<String>,
+    },
+    SummarizeFile {
+        #[clap(short, long)]
+        filename: String,
+    },
     File { filename: String },
     Prompt { text: Vec<String> },
     Csv {
@@ -536,3 +544,18 @@ impl Vocab {
         self.ptr.as_ptr()
     }
 }
+
+// fn summarize_text(prompt: &str) -> anyhow::Result<String> {
+//     // Use a prompt template for summarization:
+//     let prompt = format!(
+//         "Summarize the following text in a concise manner:\n\n{}\n\nSummary:",
+//         prompt
+//     );
+//
+//     // Call your existing llama inference function, e.g.:
+//     let response = generate_text( ctx: *mut LlamaContext,
+//                                      vocab: *const LlamaVocab,
+//                                      sampler: *mut LlamaSampler,
+//                                      prompt: &str,);
+//     Ok(response)
+// }

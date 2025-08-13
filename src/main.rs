@@ -101,6 +101,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .expect("sending prompt failed");
             println!("{:?}", output);
         }
+        Commands::SummarizePrompt { text } => {
+            let prompt = text.unwrap_or("".to_string());
+            if prompt.trim().is_empty() {
+                println!("Prompt can't be empty");
+            }
+            let summary_prompt = format!(
+                "Summarize the following text in a concise manner:\n\n{}\n\nSummary:",
+                prompt
+            );
+            // let output = generate_text(ctx.as_ptr(), vocab, sampler, &prompt);
+            let output = generate_text(ctx.ptr(), vocab.ptr(), sampler.ptr(), &summary_prompt)
+                .expect("sending prompt failed");
+            println!("{:?}", output);
+        }
+        Commands::SummarizeFile { filename } => {
+            let text = fs::read_to_string(filename).unwrap();
+            let summary_prompt = format!(
+                "Summarize the following text in a concise manner:\n\n{}\n\nSummary:",
+                text
+            );
+            let output = generate_text(ctx.ptr(), vocab.ptr(), sampler.ptr(), &summary_prompt)
+                .expect("sending file failed");
+            println!("{:?}", output);
+        }
         Commands::Csv { csv_path, output_path, query } => {
             let prompt_template = query.join(" ").replace("\\n", "\n");
             run_csv_query(ctx.ptr(), vocab.ptr(), sampler.ptr(), &csv_path, &prompt_template, &output_path)
