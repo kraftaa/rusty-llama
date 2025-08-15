@@ -128,8 +128,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Commands::Csv { csv_path, output_path, query } => {
             let prompt_template = query.join(" ").replace("\\n", "\n");
             run_csv_query(ctx.ptr(), vocab.ptr(), sampler.ptr(), &csv_path, &prompt_template, &output_path)
-            // run_csv_query(ctx.as_ptr(), vocab, sampler, &csv_path, &prompt_template, &output_path)
+                // run_csv_query(ctx.as_ptr(), vocab, sampler, &csv_path, &prompt_template, &output_path)
                 .expect("CSV query failed");
+        }
+        Commands::Answer { question, context_file } => {
+            let context = if let Some(ref _f) = context_file {
+                fs::read_to_string(context_file.clone().unwrap()).unwrap_or("".to_string())
+            } else {
+                String::new()
+            };
+
+            let context_prompt = format!(
+                "Answer the following question \n{}\n using the context from the file :\n\n{}\n\n If no file provided, \
+                answer the question in a concise manner. Summary:",
+                question, context
+            );
+
+            let output = generate_text(ctx.ptr(), vocab.ptr(), sampler.ptr(), &context_prompt)
+                .expect("sending prompt failed");
+            println!("{:?}", output);
         }
     }
 //

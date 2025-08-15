@@ -34,6 +34,14 @@ pub enum Commands {
         #[clap(short, long)]
         text: Option<String>,
     },
+    Answer {
+        /// The question to answer
+        #[clap(short, long)]
+        question: String,
+        /// Optional context file (txt/markdown)
+        #[clap(short, long)]
+        context_file: Option<String>,
+    },
     SummarizeFile {
         #[clap(short, long)]
         filename: String,
