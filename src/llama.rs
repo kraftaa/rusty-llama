@@ -53,6 +53,25 @@ pub enum Commands {
         output_path: String,
         query: Vec<String>,
     },
+    Classify {
+        /// Path to the ONNX model
+        #[arg(short, long)]
+        model: String,
+
+        /// Path to the image file
+        #[arg(short, long)]
+        image: String,
+
+        /// Path to labels.txt (one label per line)
+        #[arg(long)]
+        labels: String,
+    },
+    Forecast {
+        model: String,        // Path to the ONNX / FFI model
+        input_data: String,   // Path to CSV or input data
+        steps: i32,         // number of steps
+    },
+
 }
 
 pub fn setup_sampler(cli: &Cli) -> Result<*mut LlamaSampler, String> {
