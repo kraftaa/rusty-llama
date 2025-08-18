@@ -14,11 +14,31 @@ use clap::{Parser};
 use std::{ fs, io};
 
 use std::io::Write;
-
+// mod textmod;
+mod imagemod;
+mod forecastmod;
 use rusty_llama::llama::*;
+use crate::forecastmod::*;
+use crate::imagemod::OrtImageClassifier;
+
+
+use augurs::ets::{AutoETS, trend::AutoETSTrendModel};
+use augurs::mstl::MSTLModel;
+use augurs::prelude::*;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     backend_init();
     remove_logs();
+
+    // cc::Build::new()
+    //     .cpp(true)
+    //     .file("cpp/image_bridge.cpp")
+    //     .file("cpp/forecast_bridge.cpp")
+    //     .flag_if_supported("-std=c++17")
+    //     .compile("ml_bridges");
+
+    // If/when you link ONNX Runtime or libtorch, add .include() and .cargo:rustc-link-lib here.
+    // println!("cargo:rustc-link-search=native=/path/to/onnxruntime/lib");
+    // println!("cargo:rustc-link-lib=dylib=onnxruntime");
     let cli = Cli::parse();
     let model_params = model_default_params();
     let model = Model::load(&cli.model, model_params)?;
@@ -148,6 +168,67 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .expect("sending prompt failed");
             println!("{:?}", output);
         }
+        Commands::Classify { model, image , labels } => {
+            let classifier = imagemod::OrtImageClassifier::new(&model)?;
+
+            // TEST preprocess image -> tensor
+            // let input = ndarray::Array::from_shape_vec((1, 3, 224, 224),
+            //                                            vec![0.5; 1*3*224*224]
+            // )?;
+            let input = imagemod::preprocess_image(&image);
+
+            let outputs = OrtImageClassifier::classify(&classifier, input)?;
+
+
+
+            // load labels file
+            let label_list: Vec<String> = std::fs::read_to_string(&labels)?
+                .lines()
+                .map(|s| s.to_string())
+                .collect();
+
+            // assume output[0] is probabilities
+            // let probs = outputs.view();
+            // let probs = outputs;
+            // let mut best_idx = 0;
+            // let mut best_score = f32::MIN;
+            //
+            // for (i, score) in probs.iter().enumerate() {
+            //     if *score > best_score {
+            //         best_score = *score;
+            //         best_idx = i;
+            //     }
+            // }
+            // println!("Prediction: {} (score: {:.3})", label_list[best_idx], best_score);
+
+
+            let probs = imagemod::softmax(&outputs);
+
+            // Find top-3 predictions
+            let mut indexed_probs: Vec<(usize, f32)> = probs.iter().cloned().enumerate().collect();
+            indexed_probs.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap()); // descending
+
+            println!("Top-3 predictions:");
+            for (idx, prob) in indexed_probs.iter().take(3) {
+                println!("  {} ({:.3})", label_list[*idx], prob);
+            }
+            // println!("Prediction: {} (prob: {:.3})", label_list[best_idx], best_prob);
+
+        }
+        Commands::Forecast { model, input_data, steps } => {
+            // Load CSV -> Vec<f64>
+            let values = forecastmod::preprocess_forecast_input(&input_data)?;
+
+            // Fit ETS model
+            let model = AutoETS::non_seasonal();
+            let fitted = model.fit(&values)?;
+
+            // Forecast `steps` values
+            let forecasted = fitted.predict(steps.try_into().unwrap(), 0.95)?; // 95% confidence interval
+
+            println!("Forecast for next {} steps: {:?}", steps, forecasted);
+        }
+        _ => {}
     }
 //
 //     sampler_free(sampler);
