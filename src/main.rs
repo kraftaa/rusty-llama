@@ -226,7 +226,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Forecast `steps` values
             let forecasted = fitted.predict(steps.try_into().unwrap(), 0.95)?; // 95% confidence interval
 
-            println!("Forecast for next {} steps: {:?}", steps, forecasted);
+            // println!("Forecast for next {} steps: {:?}", steps, forecasted);
+            println!("Forecast for next {} steps:", steps);
+            for (i, val) in forecasted.point.iter().enumerate() {
+                println!("Step {}: {:.3}", i + 1, val);
+            }
         }
         _ => {}
     }
