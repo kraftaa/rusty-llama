@@ -27,7 +27,7 @@ Prebuilt binaries and the required libggml.dylib shared library for macOS (Apple
 Run all commands from inside that folder for convenience.
 
 #### Downloading the Model
-Download model files separately — here’s how to grab a quantized LLaMA-2 7B model:
+Download model files separately — here’s how to download a quantized LLaMA-2 7B model:
 
 ```shell
 mkdir -p models
@@ -35,11 +35,18 @@ wget -O models/ggml-model-q4_0.gguf \
   https://huggingface.co/TheBloke/LLaMA-2-7B-GGUF/resolve/main/llama-2-7b.Q4_0.gguf
 ```
 
-For chat, grab the chat-optimized model:
+For chat, download the chat-optimized model:
 
 ```shell
 wget -O models/llama-2-7b-chat.gguf \
   https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.gguf
+```
+
+For Classifier, download onnx model:
+```shell
+wget -O models/squeezenet1.1-7.onnx 
+https://github.com/onnx/models/raw/main/validated/vision/classification/squeezenet/model/squeezenet1.1-7.onnx
+
 ```
 
 Place your model files somewhere accessible, e.g., `./models/llama-2-7b-chat.Q4_0.gguf`.
