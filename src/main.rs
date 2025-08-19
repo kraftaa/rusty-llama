@@ -14,31 +14,19 @@ use clap::{Parser};
 use std::{ fs, io};
 
 use std::io::Write;
-// mod textmod;
+
 mod imagemod;
 mod forecastmod;
-use rusty_llama::llama::*;
-use crate::forecastmod::*;
 use crate::imagemod::OrtImageClassifier;
-
-
-use augurs::ets::{AutoETS, trend::AutoETSTrendModel};
-use augurs::mstl::MSTLModel;
+use rusty_llama::llama::*;
+use augurs::ets::AutoETS;
 use augurs::prelude::*;
+
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     backend_init();
     remove_logs();
 
-    // cc::Build::new()
-    //     .cpp(true)
-    //     .file("cpp/image_bridge.cpp")
-    //     .file("cpp/forecast_bridge.cpp")
-    //     .flag_if_supported("-std=c++17")
-    //     .compile("ml_bridges");
-
-    // If/when you link ONNX Runtime or libtorch, add .include() and .cargo:rustc-link-lib here.
-    // println!("cargo:rustc-link-search=native=/path/to/onnxruntime/lib");
-    // println!("cargo:rustc-link-lib=dylib=onnxruntime");
     let cli = Cli::parse();
     let model_params = model_default_params();
     let model = Model::load(&cli.model, model_params)?;
@@ -48,45 +36,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let vocab = model.get_vocab()?;
     let sampler = Sampler::new(&cli).expect("Failed to create sampler");
-//     let model_path_cstr = CString::new(cli.model.clone()).unwrap();
-//     println!("model_path_cstr : {:?}", model_path_cstr);
-//
-//     let model_params = model_default_params();
-//     let model = load_model_from_file(model_path_cstr.as_c_str(), model_params)
-//         .expect("Failed to load model");
-//
-//     let ctx_params = context_default_params();
-//     let ctx = new_context_with_model(model, ctx_params)
-//         .expect("Failed to create context");
-//
-//     let vocab = model_get_vocab(model)
-//         .expect("Failed to get vocab");
-//
-//     // let model = Model::load(model_path_cstr, params)?;
-//
-//
-//     // let params = model_default_params();
-//     // print_model_params(&params);
-//
-//     // let ctx_params = context_default_params();
-//     // print_context_params(&ctx_params);
-//     // println!("About to load model at path: {}", cli.model);
-//     // let model = load_model_from_file(model_path_cstr.as_c_str(), model_params)
-//     //     .expect("Failed to load model");
-//     // let model = Model::load(&cli.model, params)?;
-//     println!("Model loaded: {:?}", model);
-//
-//     // let ctx = Context::new(&model, ctx_params)?;
-//     // println!("ctx: {:?}", ctx);
-//     // let vocab = model_get_vocab(model)
-//     //     .expect("Failed to get vocab");
-//     // let vocab = model.get_vocab()?;
-//     println!("vocab: {:?}", vocab);
-//     let sampler = setup_sampler(&cli).expect("Failed to initialize sampler");
-//     println!("sampler: {:?}", sampler);
-//     // let sampler = Sampler::new(&cli).expect("Failed to create sampler");
+
     assert!(!sampler.ptr().is_null(), "Failed to init sampler");
 
+    #[allow(unreachable_patterns)]
     match cli.command {
         Commands::Chat => {
             loop {
@@ -215,7 +168,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // println!("Prediction: {} (prob: {:.3})", label_list[best_idx], best_prob);
 
         }
-        Commands::Forecast { model, input_data, steps } => {
+        Commands::Forecast { input_data, steps } => {
             // Load CSV -> Vec<f64>
             let values = forecastmod::preprocess_forecast_input(&input_data)?;
 

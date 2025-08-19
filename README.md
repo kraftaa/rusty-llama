@@ -95,6 +95,78 @@ Customize generation with these flags:
 
 `--top-p <value>` (e.g., 0.9) — nucleus sampling probability
 
+
+#### Summarize Text Prompt
+
+Summarize a string of text.
+
+```shell
+./rusty_llama --model model_path  -- summarize-prompt --text "Your long text goes here."
+```
+
+If no text is provided, it will warn:
+
+```shell
+Prompt can't be empty
+```
+
+#### Summarize File
+Summarize the contents of a text file:
+
+```shell
+./rusty_llama --model model_path -- summarize-file --filename path/to/file.txt
+```
+
+#### Context Answer
+Answer a question using an optional context file:
+
+```shell
+./rusty_llama --model model_path -- answer --question "What is the capital of France?" --context-file context.txt
+```
+If no context file is provided, the model will answer concisely using general knowledge.
+
+
+#### Image Classification
+Classify an image using an ONNX model:
+
+```shell
+./rusty_llama -- classify --model onnx_model_path/model.onnx --image path_to/image.jpg --labels labels.txt
+```
+labels.txt contains one label per line, matching the model's output classes.
+
+Prints the top-3 predictions with probabilities.
+
+Example output:
+
+```shell
+Top-3 predictions:
+  American lobster (0.492)
+  horse chestnut seed (0.207)
+  Dungeness crab (0.048)
+```
+
+#### Forecasting
+Forecast numeric time series data from a CSV file:
+
+```shell
+./rusty_llama -- forecast --input-data data/forecast_data.csv --steps 5
+```
+
+data.csv should contain one numeric value per line (e.g., daily sales, stock prices, quantity).
+
+steps specifies how many future points to predict.
+
+Example output:
+
+```shell
+Forecast for next 5 steps:
+Step 1: 183.653
+Step 2: 189.953
+Step 3: 196.253
+Step 4: 202.553
+Step 5: 208.853
+```
+
 #### Example:
 
 ```shell

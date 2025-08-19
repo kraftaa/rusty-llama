@@ -67,8 +67,9 @@ pub enum Commands {
         labels: String,
     },
     Forecast {
-        model: String,        // Path to the ONNX / FFI model
+        #[arg(short, long)]
         input_data: String,   // Path to CSV or input data
+        #[arg(short, long)]
         steps: i32,         // number of steps
     },
 
