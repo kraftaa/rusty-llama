@@ -34,29 +34,22 @@ Run all commands from inside that folder for convenience.
 #### Downloading the Model
 Download model files separately — here’s how to download a quantized LLaMA-2 7B model:
 
+```
+# SqueezeNet for image classification
+./bin/rusty_llama download-model squeezenet
+
+# LLaMA 2 Chat model for text generation
+./bin/rusty_llama download-model llama-2-7b-chat
+```
+
+or manually another models
 ```shell
 mkdir -p models
 wget -O models/ggml-model-q4_0.gguf \
   https://huggingface.co/TheBloke/LLaMA-2-7B-GGUF/resolve/main/llama-2-7b.Q4_0.gguf
 ```
 
-For chat, download the chat-optimized model:
-
-```shell
-mkdir -p models
-wget -O models/llama-2-7b-chat.gguf \
-  https://huggingface.co/TheBloke/Llama-2-7B-Chat-GGUF/resolve/main/llama-2-7b-chat.gguf
-```
-
-For Classifier, download onnx model:
-```shell
-mkdir -p models
-wget -O models/squeezenet1.1-7.onnx 
-https://github.com/onnx/models/raw/main/validated/vision/classification/squeezenet/model/squeezenet1.1-7.onnx
-
-```
-
-Place your model files into models folder, e.g., `./models/llama-2-7b-chat.Q4_0.gguf`.
+Place your extra model files into models folder, e.g., `./models/llama-2-7b-chat.Q4_0.gguf`.
 
 
 #### Set Native Library Path
@@ -142,7 +135,7 @@ If no context file is provided, the model will answer concisely using general kn
 Classify an image using an ONNX model:
 
 ```shell
-./bin/rusty_llama -- classify --model onnx_model_path/model.onnx --image path_to/image.jpg --labels labels.txt
+./bin/rusty_llama classify --model onnx_model_path/model.onnx --image path_to/image.jpg --labels labels.txt
 ```
 labels.txt contains one label per line, matching the model's output classes.
 
@@ -164,7 +157,7 @@ Necessary steps:
 Forecast numeric time series data from a CSV file:
 
 ```shell
-./bin/rusty_llama -- forecast --input-data data/forecast_data.csv --steps 5
+./bin/rusty_llama forecast --input-data data/forecast_data.csv --steps 5
 ```
 
 data.csv should contain one numeric value per line (e.g., daily sales, stock prices, quantity).
