@@ -1,0 +1,1 @@
+Rust is a modern, open-source systems programming language that emphasizes performance, memory safety, and concurrency. It is designed to be a powerful alternative to languages like C and C++ for building high-performance and reliable software.

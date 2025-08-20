@@ -1,0 +1,1 @@
+explain this SQL : select * from users limit 5;
