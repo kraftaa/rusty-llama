@@ -185,6 +185,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 println!("Step {}: {:.3}", i + 1, val);
             }
         }
+        Commands::DownloadModel { model_name } => {
+            // let exe_path = std::env::current_exe()?;
+            // let root_dir = exe_path
+            //     .parent()
+            //     .and_then(|p| p.parent())
+            //     .ok_or_else(|| anyhow::anyhow!("Failed to determine root directory"))?;
+            // println!("root dir {:?}", root_dir);
+            let root_dir = std::env::current_dir()?; // repo root if you run from repo
+            let models_dir = root_dir.join("models");
+            println!("root dir {:?}", root_dir);
+            std::fs::create_dir_all(&models_dir)?;
+
+            let (url, filename) = match model_name.as_str() {
+                "squeezenet" => (
+                    "https://github.com/onnx/models/raw/main/validated/vision/classification/squeezenet/model/squeezenet1.1-7.onnx",
+                    "squeezenet1.1-7.onnx"
+                ),
+                "llama-2-7b-chat" => (
+                    "https://huggingface.co/TheBloke/llama-2-7b-chat-Q4_0/resolve/main/llama-2-7b-chat.Q4_0.gguf",
+                    "llama-2-7b-chat.Q4_0.gguf"
+                ),
+                _ => {
+                    eprintln!("Unknown model: {}", model_name);
+                    return Ok(());
+                }
+            };
+
+            let dest_path = models_dir.join(filename);
+            if !dest_path.exists() {
+                println!("Downloading {}...", filename);
+                let bytes = reqwest::blocking::get(url)?.bytes()?;
+                std::fs::write(&dest_path, &bytes)?;
+                println!("Saved to {:?}", dest_path);
+            } else {
+                println!("Model already exists at {:?}", dest_path);
+            }
+        }
+
         _ => {}
     }
 //

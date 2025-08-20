@@ -72,6 +72,9 @@ pub enum Commands {
         #[arg(short, long)]
         steps: i32,         // number of steps
     },
+    DownloadModel {
+        model_name: String,
+    },
 
 }
 
